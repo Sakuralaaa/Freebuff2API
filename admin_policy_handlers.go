@@ -84,4 +84,3 @@ func sortedAliasItems(aliases map[string]string) []map[string]string {
 	}
 	return items
 }
-

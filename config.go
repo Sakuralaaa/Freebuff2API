@@ -27,27 +27,27 @@ type Config struct {
 }
 
 type rawConfig struct {
-	ListenAddr       string   `json:"LISTEN_ADDR"`
-	UpstreamBaseURL  string   `json:"UPSTREAM_BASE_URL"`
-	AuthTokens       []string `json:"AUTH_TOKENS"`
-	RotationInterval string   `json:"ROTATION_INTERVAL"`
-	RequestTimeout   string   `json:"REQUEST_TIMEOUT"`
-	StreamTimeout    string   `json:"STREAM_TIMEOUT"`
-	APIKeys          []string `json:"API_KEYS"`
-	HTTPProxy        string   `json:"HTTP_PROXY"`
-	AdminPassword    string   `json:"ADMIN_PASSWORD"`
+	ListenAddr       string            `json:"LISTEN_ADDR"`
+	UpstreamBaseURL  string            `json:"UPSTREAM_BASE_URL"`
+	AuthTokens       []string          `json:"AUTH_TOKENS"`
+	RotationInterval string            `json:"ROTATION_INTERVAL"`
+	RequestTimeout   string            `json:"REQUEST_TIMEOUT"`
+	StreamTimeout    string            `json:"STREAM_TIMEOUT"`
+	APIKeys          []string          `json:"API_KEYS"`
+	HTTPProxy        string            `json:"HTTP_PROXY"`
+	AdminPassword    string            `json:"ADMIN_PASSWORD"`
 	ModelAliases     map[string]string `json:"MODEL_ALIASES"`
 	Policy           rawPolicyConfig   `json:"POLICY"`
 }
 
 type PolicyConfig struct {
-	MaxRetries              int
-	RetryBackoffBase        time.Duration
-	RetryBackoffMax         time.Duration
-	PerTokenConcurrency     int
-	HealthCheckEnabled      bool
-	HealthCheckInterval     time.Duration
-	HealthFailureThreshold  int
+	MaxRetries             int
+	RetryBackoffBase       time.Duration
+	RetryBackoffMax        time.Duration
+	PerTokenConcurrency    int
+	HealthCheckEnabled     bool
+	HealthCheckInterval    time.Duration
+	HealthFailureThreshold int
 }
 
 type rawPolicyConfig struct {

@@ -49,4 +49,3 @@ func boolToFloat(value bool) int {
 	}
 	return 0
 }
-

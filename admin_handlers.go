@@ -99,10 +99,10 @@ func (s *Server) handleStats(w http.ResponseWriter, r *http.Request) {
 	aggregatedTokenStats := aggregateTokenStats(tokenState)
 
 	writeJSON(w, http.StatusOK, map[string]any{
-		"started_at": s.started.UTC(),
-		"uptime_sec": int(time.Since(s.started).Seconds()),
-		"calls":      s.stats.Snapshot(),
-		"policy":     policyPayloadFromSnapshot(s.policy.Snapshot()),
+		"started_at":    s.started.UTC(),
+		"uptime_sec":    int(time.Since(s.started).Seconds()),
+		"calls":         s.stats.Snapshot(),
+		"policy":        policyPayloadFromSnapshot(s.policy.Snapshot()),
 		"model_aliases": s.aliases.Snapshot(),
 		"tokens": map[string]any{
 			"total":          len(tokenState),
@@ -157,10 +157,10 @@ func (s *Server) handleExportJSON(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
-		"name":        "Freebuff",
-		"exported_at": time.Now().UTC(),
-		"auth_tokens": authTokens,
-		"policy":      policyPayloadFromSnapshot(s.policy.Snapshot()),
+		"name":          "Freebuff",
+		"exported_at":   time.Now().UTC(),
+		"auth_tokens":   authTokens,
+		"policy":        policyPayloadFromSnapshot(s.policy.Snapshot()),
 		"model_aliases": s.aliases.Snapshot(),
 		"stats": map[string]any{
 			"calls":  statsSnapshot,

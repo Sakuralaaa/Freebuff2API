@@ -12,19 +12,19 @@ const fallbackModelName = "unspecified-model"
 type callStats struct {
 	mu sync.RWMutex
 
-	totalRequests int
-	successCount  int
-	failureCount  int
-	retryCount    int
-	retry429Count int
-	status429Count int
-	status401Count int
-	timeoutCount  int
+	totalRequests   int
+	successCount    int
+	failureCount    int
+	retryCount      int
+	retry429Count   int
+	status429Count  int
+	status401Count  int
+	timeoutCount    int
 	runInvalidCount int
-	lastRequestAt time.Time
-	lastSuccessAt time.Time
-	lastFailureAt time.Time
-	perModel      map[string]*modelCallStats
+	lastRequestAt   time.Time
+	lastSuccessAt   time.Time
+	lastFailureAt   time.Time
+	perModel        map[string]*modelCallStats
 }
 
 type modelCallStats struct {
@@ -35,19 +35,19 @@ type modelCallStats struct {
 }
 
 type callStatsSnapshot struct {
-	TotalRequests int              `json:"total_requests"`
-	SuccessCount  int              `json:"success_count"`
-	FailureCount  int              `json:"failure_count"`
-	RetryCount    int              `json:"retry_count"`
-	Retry429Count int              `json:"retry_429_count"`
-	Status429Count int             `json:"status_429_count"`
-	Status401Count int             `json:"status_401_count"`
-	TimeoutCount  int              `json:"timeout_count"`
-	RunInvalidCount int            `json:"run_invalid_count"`
-	LastRequestAt time.Time        `json:"last_request_at,omitempty"`
-	LastSuccessAt time.Time        `json:"last_success_at,omitempty"`
-	LastFailureAt time.Time        `json:"last_failure_at,omitempty"`
-	ByModel       []modelCallStats `json:"by_model"`
+	TotalRequests   int              `json:"total_requests"`
+	SuccessCount    int              `json:"success_count"`
+	FailureCount    int              `json:"failure_count"`
+	RetryCount      int              `json:"retry_count"`
+	Retry429Count   int              `json:"retry_429_count"`
+	Status429Count  int              `json:"status_429_count"`
+	Status401Count  int              `json:"status_401_count"`
+	TimeoutCount    int              `json:"timeout_count"`
+	RunInvalidCount int              `json:"run_invalid_count"`
+	LastRequestAt   time.Time        `json:"last_request_at,omitempty"`
+	LastSuccessAt   time.Time        `json:"last_success_at,omitempty"`
+	LastFailureAt   time.Time        `json:"last_failure_at,omitempty"`
+	ByModel         []modelCallStats `json:"by_model"`
 }
 
 func newCallStats() *callStats {
@@ -92,19 +92,19 @@ func (s *callStats) Snapshot() callStatsSnapshot {
 	defer s.mu.RUnlock()
 
 	snapshot := callStatsSnapshot{
-		TotalRequests: s.totalRequests,
-		SuccessCount:  s.successCount,
-		FailureCount:  s.failureCount,
-		RetryCount:    s.retryCount,
-		Retry429Count: s.retry429Count,
-		Status429Count: s.status429Count,
-		Status401Count: s.status401Count,
-		TimeoutCount:  s.timeoutCount,
+		TotalRequests:   s.totalRequests,
+		SuccessCount:    s.successCount,
+		FailureCount:    s.failureCount,
+		RetryCount:      s.retryCount,
+		Retry429Count:   s.retry429Count,
+		Status429Count:  s.status429Count,
+		Status401Count:  s.status401Count,
+		TimeoutCount:    s.timeoutCount,
 		RunInvalidCount: s.runInvalidCount,
-		LastRequestAt: s.lastRequestAt,
-		LastSuccessAt: s.lastSuccessAt,
-		LastFailureAt: s.lastFailureAt,
-		ByModel:       make([]modelCallStats, 0, len(s.perModel)),
+		LastRequestAt:   s.lastRequestAt,
+		LastSuccessAt:   s.lastSuccessAt,
+		LastFailureAt:   s.lastFailureAt,
+		ByModel:         make([]modelCallStats, 0, len(s.perModel)),
 	}
 	for _, modelStats := range s.perModel {
 		snapshot.ByModel = append(snapshot.ByModel, *modelStats)

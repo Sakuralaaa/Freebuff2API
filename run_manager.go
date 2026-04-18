@@ -94,14 +94,14 @@ func NewRunManager(cfg Config, client *UpstreamClient, logger *log.Logger) *RunM
 	pools := make([]*tokenPool, 0, len(cfg.AuthTokens))
 	for index, token := range cfg.AuthTokens {
 		pools = append(pools, &tokenPool{
-			name:   fmt.Sprintf("token-%d", index+1),
-			token:  token,
-			cfg:    cfg,
-			client: client,
-			runs:   make(map[string]*managedRun),
-			logger: logger,
+			name:          fmt.Sprintf("token-%d", index+1),
+			token:         token,
+			cfg:           cfg,
+			client:        client,
+			runs:          make(map[string]*managedRun),
+			logger:        logger,
 			maxConcurrent: initialPolicy.PerTokenConcurrency,
-			healthy: true,
+			healthy:       true,
 		})
 	}
 
@@ -263,14 +263,14 @@ func (m *RunManager) AddToken(token string) (name string, added bool, err error)
 	}
 
 	pool := &tokenPool{
-		name:   fmt.Sprintf("token-%d", len(m.pools)+1),
-		token:  token,
-		cfg:    m.cfg,
-		client: m.client,
-		runs:   make(map[string]*managedRun),
-		logger: m.logger,
+		name:          fmt.Sprintf("token-%d", len(m.pools)+1),
+		token:         token,
+		cfg:           m.cfg,
+		client:        m.client,
+		runs:          make(map[string]*managedRun),
+		logger:        m.logger,
 		maxConcurrent: m.policy.PerTokenConcurrency,
-		healthy: true,
+		healthy:       true,
 	}
 	m.pools = append(m.pools, pool)
 	m.mu.Unlock()

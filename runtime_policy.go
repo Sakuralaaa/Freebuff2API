@@ -19,7 +19,7 @@ type runtimePolicySnapshot struct {
 }
 
 func defaultRuntimePolicy(cfg Config) runtimePolicySnapshot {
-	return runtimePolicySnapshot{
+	policy := runtimePolicySnapshot{
 		MaxRetries:             cfg.Policy.MaxRetries,
 		RetryBackoffBase:       cfg.Policy.RetryBackoffBase,
 		RetryBackoffMax:        cfg.Policy.RetryBackoffMax,
@@ -30,6 +30,28 @@ func defaultRuntimePolicy(cfg Config) runtimePolicySnapshot {
 		NonStreamTimeout:       cfg.RequestTimeout,
 		StreamTimeout:          cfg.StreamTimeout,
 	}
+	if policy.RetryBackoffBase <= 0 {
+		policy.RetryBackoffBase = 500 * time.Millisecond
+	}
+	if policy.RetryBackoffMax < policy.RetryBackoffBase {
+		policy.RetryBackoffMax = 6 * time.Second
+	}
+	if policy.PerTokenConcurrency <= 0 {
+		policy.PerTokenConcurrency = 8
+	}
+	if policy.HealthCheckInterval <= 0 {
+		policy.HealthCheckInterval = 3 * time.Minute
+	}
+	if policy.HealthFailureThreshold <= 0 {
+		policy.HealthFailureThreshold = 3
+	}
+	if policy.NonStreamTimeout <= 0 {
+		policy.NonStreamTimeout = 15 * time.Minute
+	}
+	if policy.StreamTimeout <= 0 {
+		policy.StreamTimeout = policy.NonStreamTimeout
+	}
+	return policy
 }
 
 func (p runtimePolicySnapshot) validate() error {
@@ -139,4 +161,3 @@ func (p policyPayload) toSnapshot() (runtimePolicySnapshot, error) {
 	}
 	return snapshot, snapshot.validate()
 }
-
