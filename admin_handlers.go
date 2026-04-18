@@ -11,7 +11,7 @@ type adminLoginRequest struct {
 	Password string `json:"password"`
 }
 
-type tokenStatsAggregate struct {
+type internalTokenStatsAggregate struct {
 	totalRequests int
 	totalSuccess  int
 	totalFailed   int
@@ -112,8 +112,8 @@ func (s *Server) handleStats(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func aggregateTokenStats(tokens []tokenSnapshot) tokenStatsAggregate {
-	result := tokenStatsAggregate{}
+func aggregateTokenStats(tokens []tokenSnapshot) internalTokenStatsAggregate {
+	result := internalTokenStatsAggregate{}
 	for _, token := range tokens {
 		result.totalRequests += token.TotalRequests
 		result.totalSuccess += token.SuccessCount
@@ -134,6 +134,15 @@ func (s *Server) handleExportJSON(w http.ResponseWriter, r *http.Request) {
 	statsSnapshot := s.stats.Snapshot()
 	tokenState := s.runs.Snapshots()
 	aggregatedTokenStats := aggregateTokenStats(tokenState)
+	tokenSummary := map[string]any{
+		"total":          len(tokenState),
+		"active_runs":    aggregatedTokenStats.activeRuns,
+		"draining_runs":  aggregatedTokenStats.drainingRuns,
+		"total_requests": aggregatedTokenStats.totalRequests,
+		"success_count":  aggregatedTokenStats.totalSuccess,
+		"failure_count":  aggregatedTokenStats.totalFailed,
+		"items":          tokenState,
+	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
 		"name":        "Freebuff",
@@ -141,7 +150,7 @@ func (s *Server) handleExportJSON(w http.ResponseWriter, r *http.Request) {
 		"auth_tokens": authTokens,
 		"stats": map[string]any{
 			"calls":  statsSnapshot,
-			"tokens": map[string]any{"total": len(tokenState), "active_runs": aggregatedTokenStats.activeRuns, "draining_runs": aggregatedTokenStats.drainingRuns, "total_requests": aggregatedTokenStats.totalRequests, "success_count": aggregatedTokenStats.totalSuccess, "failure_count": aggregatedTokenStats.totalFailed, "items": tokenState},
+			"tokens": tokenSummary,
 		},
 		"integration": map[string]any{
 			"auth_tokens_env": "AUTH_TOKENS",
