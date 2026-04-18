@@ -18,6 +18,8 @@ const (
 	freebuffCLICodeURL   = "https://freebuff.com/api/auth/cli/code"
 	freebuffCLIStatusURL = "https://freebuff.com/api/auth/cli/status"
 	fingerprintPrefix    = "codebuff-cli-"
+	fingerprintSeedBytes = 20
+	fingerprintTokenSize = 26
 )
 
 var freebuffLoginHTTPClient = &http.Client{Timeout: 30 * time.Second}
@@ -125,13 +127,13 @@ func (s *Server) handleLoginStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func buildFingerprintID() string {
-	seed := make([]byte, 20)
+	seed := make([]byte, fingerprintSeedBytes)
 	if _, err := rand.Read(seed); err != nil {
 		return fmt.Sprintf("%s%d", fingerprintPrefix, time.Now().UnixNano())
 	}
 	token := base64.RawURLEncoding.EncodeToString(seed)
-	if len(token) > 26 {
-		token = token[:26]
+	if len(token) > fingerprintTokenSize {
+		token = token[:fingerprintTokenSize]
 	}
 	return fingerprintPrefix + token
 }
