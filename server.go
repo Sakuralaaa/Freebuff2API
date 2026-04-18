@@ -177,9 +177,9 @@ func (s *Server) handleChatCompletions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	startTime := time.Now()
-	var recordOnce sync.Once
+	var recordResultOnce sync.Once
 	recordResult := func(success bool) {
-		recordOnce.Do(func() {
+		recordResultOnce.Do(func() {
 			s.stats.Record(requestedModel, success)
 		})
 	}

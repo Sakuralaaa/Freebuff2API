@@ -163,6 +163,7 @@ func (s *Server) handleExportJSON(w http.ResponseWriter, r *http.Request) {
 			},
 			"notes": []string{
 				"AUTH_TOKENS 可直接用于其他兼容 OpenAI Proxy 项目。",
+				"AUTH_TOKENS can be reused in other OpenAI-compatible proxy projects.",
 				"建议在目标项目中按需配置 API_KEYS 和 ADMIN_PASSWORD。",
 			},
 		},

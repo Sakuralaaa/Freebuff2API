@@ -622,7 +622,7 @@
       try { await copyAuthTokens(); setStatus("AUTH_TOKENS 已复制。", "ok"); } catch (e) { setStatus(e.message, "err"); }
     });
 
-    async function initPage() {
+    async function initializeDashboard() {
       let authStatus;
       try {
         authStatus = await fetchAdminStatus();
@@ -641,7 +641,7 @@
       }
     }
 
-    initPage();
+    initializeDashboard();
   </script>
 </body>
 </html>

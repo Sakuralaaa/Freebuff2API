@@ -7,6 +7,8 @@ import (
 	"time"
 )
 
+const fallbackModelName = "unspecified-model"
+
 type callStats struct {
 	mu sync.RWMutex
 
@@ -49,7 +51,7 @@ func (s *callStats) Record(model string, success bool) {
 	now := time.Now()
 	model = strings.TrimSpace(model)
 	if model == "" {
-		model = "unknown"
+		model = fallbackModelName
 	}
 
 	s.totalRequests++
