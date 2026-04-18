@@ -147,7 +147,7 @@
 
       const token = data.user.authToken || "";
       el("tokens").value = JSON.stringify([token]);
-      const tag = data.token_registered ? "并已注册到服务" : "（已存在，无需重复注册）";
+      const tag = data.token_registered ? "并已注册到服务" : " （已存在，无需重复注册）";
       setStatus(`登录成功：${data.user.name || ""} ${data.user.email || ""} ${tag}`.trim(), "ok");
     }
 
