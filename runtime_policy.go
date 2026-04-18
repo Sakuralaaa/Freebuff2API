@@ -2,8 +2,15 @@ package main
 
 import (
 	"errors"
+	"strings"
 	"sync"
 	"time"
+)
+
+const (
+	routingModeRoundRobin       = "round_robin"
+	routingModePriorityFill     = "priority_fill"
+	defaultPriorityFailoverStep = 3
 )
 
 type runtimePolicySnapshot struct {
@@ -16,6 +23,8 @@ type runtimePolicySnapshot struct {
 	HealthFailureThreshold int           `json:"health_failure_threshold"`
 	NonStreamTimeout       time.Duration `json:"non_stream_timeout"`
 	StreamTimeout          time.Duration `json:"stream_timeout"`
+	RoutingMode            string        `json:"routing_mode"`
+	PriorityFailoverStep   int           `json:"priority_failover_step"`
 }
 
 func defaultRuntimePolicy(cfg Config) runtimePolicySnapshot {
@@ -29,6 +38,8 @@ func defaultRuntimePolicy(cfg Config) runtimePolicySnapshot {
 		HealthFailureThreshold: cfg.Policy.HealthFailureThreshold,
 		NonStreamTimeout:       cfg.RequestTimeout,
 		StreamTimeout:          cfg.StreamTimeout,
+		RoutingMode:            cfg.Policy.RoutingMode,
+		PriorityFailoverStep:   cfg.Policy.PriorityFailoverStep,
 	}
 	if policy.RetryBackoffBase <= 0 {
 		policy.RetryBackoffBase = 500 * time.Millisecond
@@ -51,6 +62,10 @@ func defaultRuntimePolicy(cfg Config) runtimePolicySnapshot {
 	if policy.StreamTimeout <= 0 {
 		policy.StreamTimeout = policy.NonStreamTimeout
 	}
+	policy.RoutingMode = normalizeRoutingMode(policy.RoutingMode)
+	if policy.PriorityFailoverStep <= 0 {
+		policy.PriorityFailoverStep = defaultPriorityFailoverStep
+	}
 	return policy
 }
 
@@ -72,6 +87,10 @@ func (p runtimePolicySnapshot) validate() error {
 		return errors.New("non_stream_timeout must be greater than zero")
 	case p.StreamTimeout <= 0:
 		return errors.New("stream_timeout must be greater than zero")
+	case normalizeRoutingMode(p.RoutingMode) != p.RoutingMode:
+		return errors.New("routing_mode must be round_robin or priority_fill")
+	case p.PriorityFailoverStep <= 0:
+		return errors.New("priority_failover_step must be greater than zero")
 	}
 	return nil
 }
@@ -111,6 +130,8 @@ type policyPayload struct {
 	HealthFailureThreshold int    `json:"health_failure_threshold"`
 	NonStreamTimeout       string `json:"non_stream_timeout"`
 	StreamTimeout          string `json:"stream_timeout"`
+	RoutingMode            string `json:"routing_mode"`
+	PriorityFailoverStep   int    `json:"priority_failover_step"`
 }
 
 func policyPayloadFromSnapshot(policy runtimePolicySnapshot) policyPayload {
@@ -124,6 +145,8 @@ func policyPayloadFromSnapshot(policy runtimePolicySnapshot) policyPayload {
 		HealthFailureThreshold: policy.HealthFailureThreshold,
 		NonStreamTimeout:       policy.NonStreamTimeout.String(),
 		StreamTimeout:          policy.StreamTimeout.String(),
+		RoutingMode:            policy.RoutingMode,
+		PriorityFailoverStep:   policy.PriorityFailoverStep,
 	}
 }
 
@@ -158,6 +181,21 @@ func (p policyPayload) toSnapshot() (runtimePolicySnapshot, error) {
 		HealthFailureThreshold: p.HealthFailureThreshold,
 		NonStreamTimeout:       nonStreamTimeout,
 		StreamTimeout:          streamTimeout,
+		RoutingMode:            normalizeRoutingMode(p.RoutingMode),
+		PriorityFailoverStep:   p.PriorityFailoverStep,
+	}
+	if snapshot.PriorityFailoverStep <= 0 {
+		snapshot.PriorityFailoverStep = defaultPriorityFailoverStep
 	}
 	return snapshot, snapshot.validate()
+}
+
+func normalizeRoutingMode(mode string) string {
+	normalized := strings.ToLower(strings.TrimSpace(mode))
+	switch normalized {
+	case routingModePriorityFill:
+		return routingModePriorityFill
+	default:
+		return routingModeRoundRobin
+	}
 }

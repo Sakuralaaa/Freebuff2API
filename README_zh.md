@@ -73,7 +73,9 @@ npm i -g freebuff
     "PER_TOKEN_CONCURRENCY": 8,
     "HEALTH_CHECK_ENABLED": true,
     "HEALTH_CHECK_INTERVAL": "3m",
-    "HEALTH_FAILURE_THRESHOLD": 3
+    "HEALTH_FAILURE_THRESHOLD": 3,
+    "ROUTING_MODE": "round_robin",
+    "PRIORITY_FAILOVER_STEP": 3
   }
 }
 ```
@@ -92,7 +94,7 @@ npm i -g freebuff
 | `HTTP_PROXY` | 上游 HTTP 代理地址 |
 | `ADMIN_PASSWORD` | Web 管理页密码（设置后需先登录管理页） |
 | `MODEL_ALIASES` | 模型别名映射（`/api/model-aliases` 可在线管理） |
-| `POLICY` | 运行时策略默认值（重试/退避/并发/健康检查） |
+| `POLICY` | 运行时策略默认值（重试/退避/并发/健康检查/路由模式，支持 `round_robin` 与 `priority_fill`） |
 
 同时设置时，环境变量优先于 JSON 配置文件。
 

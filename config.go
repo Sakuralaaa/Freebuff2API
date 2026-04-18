@@ -48,6 +48,8 @@ type PolicyConfig struct {
 	HealthCheckEnabled     bool
 	HealthCheckInterval    time.Duration
 	HealthFailureThreshold int
+	RoutingMode            string
+	PriorityFailoverStep   int
 }
 
 type rawPolicyConfig struct {
@@ -58,6 +60,8 @@ type rawPolicyConfig struct {
 	HealthCheckEnabled     *bool  `json:"HEALTH_CHECK_ENABLED"`
 	HealthCheckInterval    string `json:"HEALTH_CHECK_INTERVAL"`
 	HealthFailureThreshold *int   `json:"HEALTH_FAILURE_THRESHOLD"`
+	RoutingMode            string `json:"ROUTING_MODE"`
+	PriorityFailoverStep   *int   `json:"PRIORITY_FAILOVER_STEP"`
 }
 
 func loadConfig(configPath string) (Config, error) {
@@ -232,6 +236,8 @@ func parsePolicyConfig(raw rawPolicyConfig) (PolicyConfig, error) {
 		HealthCheckEnabled:     true,
 		HealthCheckInterval:    3 * time.Minute,
 		HealthFailureThreshold: 3,
+		RoutingMode:            routingModeRoundRobin,
+		PriorityFailoverStep:   defaultPriorityFailoverStep,
 	}
 	if raw.MaxRetries != nil {
 		result.MaxRetries = *raw.MaxRetries
@@ -244,6 +250,13 @@ func parsePolicyConfig(raw rawPolicyConfig) (PolicyConfig, error) {
 	}
 	if raw.HealthFailureThreshold != nil {
 		result.HealthFailureThreshold = *raw.HealthFailureThreshold
+	}
+	if raw.PriorityFailoverStep != nil {
+		result.PriorityFailoverStep = *raw.PriorityFailoverStep
+	}
+	routingMode := strings.TrimSpace(raw.RoutingMode)
+	if routingMode != "" {
+		result.RoutingMode = routingMode
 	}
 	if strings.TrimSpace(raw.RetryBackoffBase) != "" {
 		d, err := time.ParseDuration(strings.TrimSpace(raw.RetryBackoffBase))
@@ -283,6 +296,10 @@ func parsePolicyConfig(raw rawPolicyConfig) (PolicyConfig, error) {
 	}
 	if result.HealthFailureThreshold <= 0 {
 		return PolicyConfig{}, errors.New("POLICY.HEALTH_FAILURE_THRESHOLD must be greater than zero")
+	}
+	result.RoutingMode = normalizeRoutingMode(result.RoutingMode)
+	if result.PriorityFailoverStep <= 0 {
+		return PolicyConfig{}, errors.New("POLICY.PRIORITY_FAILOVER_STEP must be greater than zero")
 	}
 	return result, nil
 }
