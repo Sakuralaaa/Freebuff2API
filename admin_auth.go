@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
-	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -88,21 +87,11 @@ func (a *adminAuth) Logout(token string) {
 
 func randomToken(size int) (string, error) {
 	if size <= 0 {
-		size = 32
+		return "", errors.New("token size must be greater than zero")
 	}
 	seed := make([]byte, size)
 	if _, err := rand.Read(seed); err != nil {
 		return "", err
 	}
 	return base64.RawURLEncoding.EncodeToString(seed), nil
-}
-
-func isRequestSecure(r *http.Request) bool {
-	if r == nil {
-		return false
-	}
-	if r.TLS != nil {
-		return true
-	}
-	return strings.EqualFold(strings.TrimSpace(r.Header.Get("X-Forwarded-Proto")), "https")
 }

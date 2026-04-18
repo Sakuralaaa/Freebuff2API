@@ -196,6 +196,9 @@ func (m *RunManager) Snapshots() []tokenSnapshot {
 	return snapshots
 }
 
+// AddToken registers an auth token into the runtime pool and returns the pool
+// name, whether it was newly added, and any error. This method is safe for
+// concurrent use.
 func (m *RunManager) AddToken(token string) (name string, added bool, err error) {
 	token = strings.TrimSpace(token)
 	if token == "" {
