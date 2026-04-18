@@ -14,11 +14,14 @@ import (
 type RunManager struct {
 	cfg    Config
 	logger *log.Logger
+	client *UpstreamClient
+	mu     sync.RWMutex
 	pools  []*tokenPool
 	next   atomic.Uint64
 
 	stopCh chan struct{}
 	wg     sync.WaitGroup
+	live   atomic.Bool
 }
 
 type tokenPool struct {
@@ -53,7 +56,7 @@ type tokenSnapshot struct {
 	Name          string        `json:"name"`
 	Runs          []runSnapshot `json:"runs"`
 	DrainingRuns  int           `json:"draining_runs"`
-	CooldownUntil time.Time    `json:"cooldown_until,omitempty"`
+	CooldownUntil time.Time     `json:"cooldown_until,omitempty"`
 	LastError     string        `json:"last_error,omitempty"`
 }
 
@@ -81,12 +84,14 @@ func NewRunManager(cfg Config, client *UpstreamClient, logger *log.Logger) *RunM
 	return &RunManager{
 		cfg:    cfg,
 		logger: logger,
+		client: client,
 		pools:  pools,
 		stopCh: make(chan struct{}),
 	}
 }
 
 func (m *RunManager) Start(ctx context.Context) {
+	m.live.Store(true)
 	// Pre-warm runs for all tracked agents in background.
 	// The server is already listening; if a request arrives before
 	// pre-warming finishes, acquire() will lazily create the run.
@@ -102,7 +107,7 @@ func (m *RunManager) Start(ctx context.Context) {
 			select {
 			case <-ticker.C:
 				maintainCtx, cancel := context.WithTimeout(context.Background(), m.cfg.RequestTimeout)
-				for _, pool := range m.pools {
+				for _, pool := range m.currentPools() {
 					if err := pool.maintain(maintainCtx); err != nil {
 						m.logger.Printf("%s: maintenance failed: %v", pool.name, err)
 					}
@@ -119,7 +124,7 @@ func (m *RunManager) prewarm() {
 	ctx, cancel := context.WithTimeout(context.Background(), m.cfg.RequestTimeout)
 	defer cancel()
 
-	for _, pool := range m.pools {
+	for _, pool := range m.currentPools() {
 		for _, agentID := range trackedAgents {
 			if err := pool.rotateAgent(ctx, agentID); err != nil {
 				m.logger.Printf("%s: prewarm %s failed: %v", pool.name, agentID, err)
@@ -131,9 +136,10 @@ func (m *RunManager) prewarm() {
 }
 
 func (m *RunManager) Close(ctx context.Context) {
+	m.live.Store(false)
 	close(m.stopCh)
 	m.wg.Wait()
-	for _, pool := range m.pools {
+	for _, pool := range m.currentPools() {
 		if err := pool.shutdown(ctx); err != nil {
 			m.logger.Printf("%s: shutdown failed: %v", pool.name, err)
 		}
@@ -141,14 +147,15 @@ func (m *RunManager) Close(ctx context.Context) {
 }
 
 func (m *RunManager) Acquire(ctx context.Context, agentID string) (*runLease, error) {
-	if len(m.pools) == 0 {
+	pools := m.currentPools()
+	if len(pools) == 0 {
 		return nil, errors.New("no auth tokens configured")
 	}
 
-	startIndex := int(m.next.Add(1)-1) % len(m.pools)
+	startIndex := int(m.next.Add(1)-1) % len(pools)
 	var errs []string
-	for offset := 0; offset < len(m.pools); offset++ {
-		pool := m.pools[(startIndex+offset)%len(m.pools)]
+	for offset := 0; offset < len(pools); offset++ {
+		pool := pools[(startIndex+offset)%len(pools)]
 		lease, err := pool.acquire(ctx, agentID)
 		if err == nil {
 			return lease, nil
@@ -181,11 +188,65 @@ func (m *RunManager) Cooldown(lease *runLease, duration time.Duration, reason st
 }
 
 func (m *RunManager) Snapshots() []tokenSnapshot {
-	snapshots := make([]tokenSnapshot, 0, len(m.pools))
-	for _, pool := range m.pools {
+	pools := m.currentPools()
+	snapshots := make([]tokenSnapshot, 0, len(pools))
+	for _, pool := range pools {
 		snapshots = append(snapshots, pool.snapshot())
 	}
 	return snapshots
+}
+
+// AddToken registers an auth token into the runtime pool and returns the pool
+// name, whether it was newly added, and any error. This method is safe for
+// concurrent use.
+func (m *RunManager) AddToken(token string) (name string, added bool, err error) {
+	token = strings.TrimSpace(token)
+	if token == "" {
+		return "", false, errors.New("auth token cannot be empty")
+	}
+
+	m.mu.Lock()
+	for _, pool := range m.pools {
+		if pool.token == token {
+			name = pool.name
+			m.mu.Unlock()
+			return name, false, nil
+		}
+	}
+
+	pool := &tokenPool{
+		name:   fmt.Sprintf("token-%d", len(m.pools)+1),
+		token:  token,
+		cfg:    m.cfg,
+		client: m.client,
+		runs:   make(map[string]*managedRun),
+		logger: m.logger,
+	}
+	m.pools = append(m.pools, pool)
+	m.mu.Unlock()
+
+	if m.live.Load() {
+		go m.prewarmPool(pool)
+	}
+	return pool.name, true, nil
+}
+
+func (m *RunManager) prewarmPool(pool *tokenPool) {
+	ctx, cancel := context.WithTimeout(context.Background(), m.cfg.RequestTimeout)
+	defer cancel()
+	for _, agentID := range trackedAgents {
+		if err := pool.rotateAgent(ctx, agentID); err != nil {
+			m.logger.Printf("%s: prewarm %s failed: %v", pool.name, agentID, err)
+		} else {
+			m.logger.Printf("%s: prewarmed %s", pool.name, agentID)
+		}
+	}
+}
+
+func (m *RunManager) currentPools() []*tokenPool {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return append([]*tokenPool(nil), m.pools...)
 }
 
 func (p *tokenPool) acquire(ctx context.Context, agentID string) (*runLease, error) {

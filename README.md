@@ -11,6 +11,7 @@ Freebuff2API is an OpenAI-compatible proxy server for [Freebuff](https://freebuf
 - **Multi-Token Rotation** — Cycle through multiple auth tokens with automatic periodic rotation.
 - **HTTP Proxy Support** — Route all outbound traffic through a configurable upstream proxy.
 - **Built-in Web Console** — Complete Freebuff login in browser and copy `AUTH_TOKENS` directly.
+- **Runtime Token Registration** — No prefilled `AUTH_TOKENS` required; tokens can be added from web login flow.
 
 ## Getting Auth Tokens
 
@@ -59,7 +60,8 @@ Configuration is managed via a JSON file and/or environment variables. The JSON 
   "ROTATION_INTERVAL": "6h",
   "REQUEST_TIMEOUT": "15m",
   "API_KEYS": [],
-  "HTTP_PROXY": ""
+  "HTTP_PROXY": "",
+  "ADMIN_PASSWORD": ""
 }
 ```
 
@@ -74,6 +76,7 @@ Configuration is managed via a JSON file and/or environment variables. The JSON 
 | `REQUEST_TIMEOUT` | Upstream request timeout (default `15m`) |
 | `API_KEYS` | Client API keys for proxy auth (empty = open access) |
 | `HTTP_PROXY` | HTTP proxy for outbound requests |
+| `ADMIN_PASSWORD` | Web admin password (when set, web login APIs require admin sign-in) |
 
 Environment variables override JSON values when both are set.
 
@@ -82,10 +85,11 @@ Environment variables override JSON values when both are set.
 After startup, open `http://<host>:8080/` to use the built-in console.  
 The core logic from `freebuff_login_and_print.py` is now integrated into service endpoints:
 
+- Optional: set `ADMIN_PASSWORD` to require simple password login for web management
 - `POST /api/login/session`: create a login session and return `login_url`
-- `GET /api/login/status`: poll authorization status and return user/token data
+- `GET /api/login/status`: poll authorization status, return user/token data, and auto-register token into runtime pool
 
-After authorization, copy the generated `AUTH_TOKENS` JSON array from the page.
+After authorization, the token is available immediately without restart; the page still shows `AUTH_TOKENS` export for compatibility.
 
 ## Deployment
 
@@ -96,7 +100,7 @@ Pre-built multi-arch images are available on GHCR (image path follows your repos
 ```bash
 docker run -d --name Freebuff2API \
   -p 8080:8080 \
-  -e AUTH_TOKENS="token1,token2" \
+  -e ADMIN_PASSWORD="your-password" \
   ghcr.io/<your-github-owner>/freebuff2api:latest
 ```
 
@@ -104,7 +108,7 @@ Build from source:
 
 ```bash
 docker build -t Freebuff2API .
-docker run -d -p 8080:8080 -e AUTH_TOKENS="token1,token2" Freebuff2API
+docker run -d -p 8080:8080 -e ADMIN_PASSWORD="your-password" Freebuff2API
 ```
 
 ## GitHub Actions Docker Auto Build

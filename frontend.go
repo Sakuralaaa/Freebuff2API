@@ -35,15 +35,10 @@ func (s *Server) handleFrontendIndex(w http.ResponseWriter, r *http.Request) {
 	http.FileServer(http.FS(frontendFS)).ServeHTTP(w, clone)
 }
 
-func isPublicPath(path string) bool {
-	switch {
-	case path == "/", path == "/healthz":
-		return true
-	case strings.HasPrefix(path, "/ui/"):
-		return true
-	case strings.HasPrefix(path, "/api/login/"):
-		return true
-	default:
-		return false
-	}
+func requiresAdminSession(path string) bool {
+	return strings.HasPrefix(path, "/api/login/") || path == "/api/admin/logout"
+}
+
+func requiresAPIKeyAuth(path string) bool {
+	return strings.HasPrefix(path, "/v1/")
 }

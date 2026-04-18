@@ -19,6 +19,7 @@ type Server struct {
 	client   *UpstreamClient
 	runs     *RunManager
 	registry *ModelRegistry
+	admin    *adminAuth
 	started  time.Time
 }
 
@@ -32,6 +33,7 @@ func NewServer(cfg Config, logger *log.Logger, registry *ModelRegistry) *Server 
 		client:   client,
 		runs:     runManager,
 		registry: registry,
+		admin:    newAdminAuth(cfg.AdminPassword),
 		started:  time.Now(),
 	}
 }
@@ -41,6 +43,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/", s.handleFrontendIndex)
 	mux.Handle("/ui/", http.StripPrefix("/ui/", http.FileServer(http.FS(frontendFS))))
 	mux.HandleFunc("/healthz", s.handleHealthz)
+	mux.HandleFunc("/api/admin/status", s.handleAdminStatus)
+	mux.HandleFunc("/api/admin/login", s.handleAdminLogin)
+	mux.HandleFunc("/api/admin/logout", s.handleAdminLogout)
 	mux.HandleFunc("/api/login/session", s.handleCreateLoginSession)
 	mux.HandleFunc("/api/login/status", s.handleLoginStatus)
 	mux.HandleFunc("/v1/models", s.handleModels)
@@ -58,16 +63,27 @@ func (s *Server) Shutdown(ctx context.Context) {
 
 func (s *Server) withMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if isPublicPath(r.URL.Path) {
-			next.ServeHTTP(w, r)
+		if requiresAdminSession(r.URL.Path) && !s.adminAuthorized(r) {
+			writeOpenAIError(w, http.StatusUnauthorized, "admin login required", "authentication_error", "")
 			return
 		}
-		if len(s.cfg.APIKeys) > 0 && !s.authorized(r) {
+		if requiresAPIKeyAuth(r.URL.Path) && len(s.cfg.APIKeys) > 0 && !s.authorized(r) {
 			writeOpenAIError(w, http.StatusUnauthorized, "invalid proxy api key", "authentication_error", "")
 			return
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+func (s *Server) adminAuthorized(r *http.Request) bool {
+	if s.admin == nil || !s.admin.Enabled() {
+		return true
+	}
+	cookie, err := r.Cookie(adminSessionCookieName)
+	if err != nil {
+		return false
+	}
+	return s.admin.IsAuthorized(cookie.Value)
 }
 
 func (s *Server) authorized(r *http.Request) bool {
