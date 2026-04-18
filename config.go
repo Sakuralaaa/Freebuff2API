@@ -254,8 +254,9 @@ func parsePolicyConfig(raw rawPolicyConfig) (PolicyConfig, error) {
 	if raw.PriorityFailoverStep != nil {
 		result.PriorityFailoverStep = *raw.PriorityFailoverStep
 	}
-	if strings.TrimSpace(raw.RoutingMode) != "" {
-		result.RoutingMode = strings.TrimSpace(raw.RoutingMode)
+	routingMode := strings.TrimSpace(raw.RoutingMode)
+	if routingMode != "" {
+		result.RoutingMode = routingMode
 	}
 	if strings.TrimSpace(raw.RetryBackoffBase) != "" {
 		d, err := time.ParseDuration(strings.TrimSpace(raw.RetryBackoffBase))

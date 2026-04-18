@@ -191,7 +191,8 @@ func (p policyPayload) toSnapshot() (runtimePolicySnapshot, error) {
 }
 
 func normalizeRoutingMode(mode string) string {
-	switch strings.TrimSpace(strings.ToLower(mode)) {
+	normalized := strings.ToLower(strings.TrimSpace(mode))
+	switch normalized {
 	case routingModePriorityFill:
 		return routingModePriorityFill
 	default:

@@ -243,7 +243,7 @@ func (m *RunManager) RecordResult(lease *runLease, success bool) {
 	if policy.RoutingMode != routingModePriorityFill {
 		return
 	}
-	if lease.pool.failureStreak() < policy.PriorityFailoverStep {
+	if lease.pool.currentFailureStreak() < policy.PriorityFailoverStep {
 		return
 	}
 	m.switchStickyPool(lease.pool)
@@ -581,7 +581,7 @@ func (p *tokenPool) recordResult(success bool) {
 	p.failStreak++
 }
 
-func (p *tokenPool) failureStreak() int {
+func (p *tokenPool) currentFailureStreak() int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return p.failStreak
@@ -740,6 +740,13 @@ func (m *RunManager) switchStickyPool(current *tokenPool) {
 	if currentIndex == -1 {
 		return
 	}
+	current.resetFailureStreak()
 	nextIndex := (currentIndex + 1) % len(pools)
 	m.sticky.Store(uint64(nextIndex))
+}
+
+func (p *tokenPool) resetFailureStreak() {
+	p.mu.Lock()
+	p.failStreak = 0
+	p.mu.Unlock()
 }

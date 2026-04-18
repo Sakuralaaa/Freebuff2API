@@ -89,7 +89,7 @@
         textarea:focus {
             outline: none;
             border-color: #e91e63;
-            box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+            box-shadow: 0 0 0 3px rgba(233, 30, 99, 0.1);
         }
 
         textarea {
@@ -1458,8 +1458,9 @@
         };
 
         function renderAliases() {
-            const rows = Object.entries(state.aliases || {}).map(([alias, model]) => ({ model, alias }));
-            rows.sort((a, b) => (a.model || '').localeCompare(b.model || ''));
+            // Backend stores alias -> model; UI displays model -> alias for easier editing.
+            const rows = Object.entries(state.aliases || {}).map(([aliasName, originalModel]) => ({ originalModel, aliasName }));
+            rows.sort((a, b) => (a.originalModel || '').localeCompare(b.originalModel || ''));
             const box = el('aliasList');
             if (rows.length === 0) {
                 box.innerHTML = `<div class="alias-empty">${t('settings.aliasEmpty')}</div>`;
@@ -1467,9 +1468,9 @@
             }
             box.innerHTML = rows.map((row, idx) => `
                 <div class="alias-row" data-index="${idx}">
-                    <input type="text" class="alias-model" placeholder="${t('settings.aliasSource')}" value="${(row.model || '').replace(/"/g, '&quot;')}">
+                    <input type="text" class="alias-model" placeholder="${t('settings.aliasSource')}" value="${escapeHtml(row.originalModel || '')}">
                     <span class="alias-arrow">→</span>
-                    <input type="text" class="alias-name" placeholder="${t('settings.aliasTarget')}" value="${(row.alias || '').replace(/"/g, '&quot;')}">
+                    <input type="text" class="alias-name" placeholder="${t('settings.aliasTarget')}" value="${escapeHtml(row.aliasName || '')}">
                     <button type="button" class="btn btn-danger btn-sm alias-remove">${t('settings.remove')}</button>
                 </div>
             `).join('');
@@ -1493,9 +1494,9 @@
             const row = document.createElement('div');
             row.className = 'alias-row';
             row.innerHTML = `
-                <input type="text" class="alias-model" placeholder="${t('settings.aliasSource')}" value="${(model || '').replace(/"/g, '&quot;')}">
+                <input type="text" class="alias-model" placeholder="${t('settings.aliasSource')}" value="${escapeHtml(model || '')}">
                 <span class="alias-arrow">→</span>
-                <input type="text" class="alias-name" placeholder="${t('settings.aliasTarget')}" value="${(alias || '').replace(/"/g, '&quot;')}">
+                <input type="text" class="alias-name" placeholder="${t('settings.aliasTarget')}" value="${escapeHtml(alias || '')}">
                 <button type="button" class="btn btn-danger btn-sm alias-remove">${t('settings.remove')}</button>
             `;
             row.querySelector('.alias-remove').addEventListener('click', () => {
@@ -1510,10 +1511,11 @@
         function collectAliasesFromRows() {
             const aliases = {};
             document.querySelectorAll('#aliasList .alias-row').forEach((row) => {
-                const model = row.querySelector('.alias-model')?.value?.trim() || '';
-                const alias = row.querySelector('.alias-name')?.value?.trim() || '';
-                if (!model || !alias) return;
-                aliases[alias] = model;
+                const originalModel = row.querySelector('.alias-model')?.value?.trim() || '';
+                const aliasName = row.querySelector('.alias-name')?.value?.trim() || '';
+                if (!originalModel || !aliasName) return;
+                // Backend API expects alias -> model mapping.
+                aliases[aliasName] = originalModel;
             });
             return aliases;
         }
