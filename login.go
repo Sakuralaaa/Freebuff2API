@@ -8,8 +8,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -192,17 +194,22 @@ func requestFreebuffJSON(ctx context.Context, method, targetURL string, body any
 }
 
 func stringValue(payload map[string]any, key string) string {
-	value, _ := payload[key].(string)
-	return value
+	if payload == nil {
+		return ""
+	}
+	return scalarString(payload[key])
 }
 
 func firstNonEmptyString(payload map[string]any, keys ...string) string {
+	if payload == nil {
+		return ""
+	}
 	if value := firstNonEmptyStringFromMap(payload, keys...); value != "" {
 		return value
 	}
 	for _, containerKey := range []string{"data", "result", "session", "payload"} {
 		nested, _ := payload[containerKey].(map[string]any)
-		if value := firstNonEmptyStringFromMap(nested, keys...); value != "" {
+		if value := firstNonEmptyString(nested, keys...); value != "" {
 			return value
 		}
 	}
@@ -214,10 +221,34 @@ func firstNonEmptyStringFromMap(payload map[string]any, keys ...string) string {
 		return ""
 	}
 	for _, key := range keys {
-		value, _ := payload[key].(string)
-		if trimmed := strings.TrimSpace(value); trimmed != "" {
+		if trimmed := strings.TrimSpace(scalarString(payload[key])); trimmed != "" {
 			return trimmed
 		}
 	}
 	return ""
+}
+
+func scalarString(value any) string {
+	switch typed := value.(type) {
+	case nil:
+		return ""
+	case string:
+		return typed
+	case float64:
+		if isWholeFiniteFloat(typed) {
+			return strconv.FormatFloat(typed, 'f', 0, 64)
+		}
+		return strconv.FormatFloat(typed, 'f', -1, 64)
+	case map[string]any, []any:
+		return ""
+	default:
+		return fmt.Sprint(typed)
+	}
+}
+
+func isWholeFiniteFloat(value float64) bool {
+	if math.IsNaN(value) || math.IsInf(value, 0) {
+		return false
+	}
+	return math.Trunc(value) == value
 }
