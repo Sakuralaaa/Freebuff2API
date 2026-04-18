@@ -235,7 +235,7 @@ func scalarString(value any) string {
 	case string:
 		return typed
 	case float64:
-		if !math.IsNaN(typed) && !math.IsInf(typed, 0) && math.Trunc(typed) == typed && typed >= math.MinInt64 && typed <= math.MaxInt64 {
+		if isSafeInt64Float(typed) {
 			return strconv.FormatInt(int64(typed), 10)
 		}
 		return strconv.FormatFloat(typed, 'f', -1, 64)
@@ -244,4 +244,11 @@ func scalarString(value any) string {
 	default:
 		return fmt.Sprint(typed)
 	}
+}
+
+func isSafeInt64Float(value float64) bool {
+	if math.IsNaN(value) || math.IsInf(value, 0) {
+		return false
+	}
+	return math.Trunc(value) == value && value >= math.MinInt64 && value <= math.MaxInt64
 }
