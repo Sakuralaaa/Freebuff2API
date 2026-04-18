@@ -88,6 +88,18 @@
       color: var(--rose-700);
     }
 
+    .card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .card-head h2 {
+      margin: 0;
+    }
+
     .row { margin-bottom: 12px; }
     .row:last-child { margin-bottom: 0; }
     .row-top-gap { margin-top: 10px; }
@@ -152,6 +164,70 @@
       color: var(--rose-700);
       border: 1px solid var(--rose-300);
       box-shadow: none;
+    }
+
+    .btn-inline {
+      width: auto;
+      margin-top: 0;
+      padding: 8px 12px;
+      font-size: 13px;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px;
+    }
+
+    .stat-box {
+      background: linear-gradient(160deg, #fff, var(--rose-50));
+      border: 1px solid var(--rose-200);
+      border-radius: 10px;
+      padding: 10px;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: var(--text-500);
+    }
+
+    .stat-value {
+      margin-top: 4px;
+      font-size: 22px;
+      line-height: 1.2;
+      color: var(--rose-700);
+      font-weight: 700;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--rose-200);
+      border-radius: 10px;
+      margin-top: 10px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      min-width: 520px;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 9px 10px;
+      border-bottom: 1px solid var(--rose-100);
+      white-space: nowrap;
+    }
+
+    th {
+      color: var(--rose-700);
+      background: var(--rose-50);
+      font-weight: 600;
+    }
+
+    td {
+      color: var(--text-700);
     }
 
     .meta {
@@ -249,6 +325,68 @@
       </div>
 
       <div class="card" style="grid-column: 1 / -1;">
+        <div class="card-head">
+          <h2>统计面板</h2>
+          <button id="statsRefreshBtn" class="ghost btn-inline">刷新统计</button>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-box">
+            <div class="stat-label">总调用</div>
+            <div class="stat-value" id="statTotalRequests">0</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">成功调用</div>
+            <div class="stat-value" id="statSuccess">0</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">失败调用</div>
+            <div class="stat-value" id="statFailed">0</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Token 数量</div>
+            <div class="stat-value" id="statTokenCount">0</div>
+          </div>
+        </div>
+        <div class="meta">最后请求时间：<code id="lastRequestAt">-</code></div>
+
+        <div class="meta" style="margin-top:12px;">Token 调用统计</div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Token</th>
+                <th>请求</th>
+                <th>成功</th>
+                <th>失败</th>
+                <th>活跃 Run</th>
+                <th>最近使用</th>
+              </tr>
+            </thead>
+            <tbody id="tokenStatsBody">
+              <tr><td colspan="6">暂无数据</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="meta" style="margin-top:12px;">模型调用统计</div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>模型</th>
+                <th>请求</th>
+                <th>成功</th>
+                <th>失败</th>
+              </tr>
+            </thead>
+            <tbody id="modelStatsBody">
+              <tr><td colspan="4">暂无数据</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card" style="grid-column: 1 / -1;">
         <h2>AUTH_TOKENS（兼容旧部署）</h2>
         <textarea id="tokens" readonly></textarea>
       </div>
@@ -275,7 +413,75 @@
       const disabled = enabled && !authenticated;
       el("createBtn").disabled = disabled;
       el("pollBtn").disabled = disabled || !state.fingerprint_id;
+      el("statsRefreshBtn").disabled = disabled;
       if (disabled) setStatus("请先输入管理密码登录。");
+    }
+
+    function formatTime(value) {
+      if (!value) return "-";
+      const time = new Date(value);
+      if (Number.isNaN(time.getTime())) return "-";
+      return time.toLocaleString();
+    }
+
+    function numberValue(value) {
+      const n = Number(value);
+      return Number.isFinite(n) ? n : 0;
+    }
+
+    function renderTokenStats(items) {
+      const body = el("tokenStatsBody");
+      const rows = Array.isArray(items) ? items : [];
+      if (!rows.length) {
+        body.innerHTML = `<tr><td colspan="6">暂无数据</td></tr>`;
+        return;
+      }
+      body.innerHTML = rows.map((token) => {
+        const runCount = Array.isArray(token?.runs) ? token.runs.length : 0;
+        return `<tr>
+          <td>${token?.name || "-"}</td>
+          <td>${numberValue(token?.total_requests)}</td>
+          <td>${numberValue(token?.success_count)}</td>
+          <td>${numberValue(token?.failure_count)}</td>
+          <td>${runCount}</td>
+          <td>${formatTime(token?.last_used_at)}</td>
+        </tr>`;
+      }).join("");
+    }
+
+    function renderModelStats(items) {
+      const body = el("modelStatsBody");
+      const rows = Array.isArray(items) ? items : [];
+      if (!rows.length) {
+        body.innerHTML = `<tr><td colspan="4">暂无数据</td></tr>`;
+        return;
+      }
+      body.innerHTML = rows.map((model) => `<tr>
+        <td>${model?.model || "-"}</td>
+        <td>${numberValue(model?.requests)}</td>
+        <td>${numberValue(model?.success)}</td>
+        <td>${numberValue(model?.failed)}</td>
+      </tr>`).join("");
+    }
+
+    function renderStats(data) {
+      const calls = data?.calls || {};
+      const tokens = data?.tokens || {};
+      el("statTotalRequests").textContent = numberValue(calls.total_requests);
+      el("statSuccess").textContent = numberValue(calls.success_count);
+      el("statFailed").textContent = numberValue(calls.failure_count);
+      el("statTokenCount").textContent = numberValue(tokens.total);
+      el("lastRequestAt").textContent = formatTime(calls.last_request_at);
+      renderTokenStats(tokens.items);
+      renderModelStats(calls.by_model);
+    }
+
+    async function fetchStats() {
+      const res = await fetch("/api/stats");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error?.message || "获取统计失败");
+      renderStats(data);
+      return data;
     }
 
     async function fetchAdminStatus() {
@@ -297,6 +503,7 @@
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error?.message || "登录失败");
       await fetchAdminStatus();
+      await fetchStats();
       setStatus("管理登录成功。", "ok");
     }
 
@@ -305,6 +512,7 @@
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error?.message || "退出失败");
       await fetchAdminStatus();
+      renderStats({});
       setStatus("已退出管理登录。");
     }
 
@@ -372,7 +580,13 @@
       try { await logoutAdmin(); } catch (e) { setStatus(e.message, "err"); }
     });
 
-    fetchAdminStatus().catch((e) => setStatus(e.message, "err"));
+    el("statsRefreshBtn").addEventListener("click", async () => {
+      try { await fetchStats(); setStatus("统计已更新。", "ok"); } catch (e) { setStatus(e.message, "err"); }
+    });
+
+    fetchAdminStatus()
+      .then(() => fetchStats())
+      .catch((e) => setStatus(e.message, "err"));
   </script>
 </body>
 </html>

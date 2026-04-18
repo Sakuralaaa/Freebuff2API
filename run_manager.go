@@ -36,6 +36,10 @@ type tokenPool struct {
 	draining      []*managedRun
 	lastError     string
 	cooldownUntil time.Time
+	totalRequests int
+	successCount  int
+	failureCount  int
+	lastUsedAt    time.Time
 }
 
 type managedRun struct {
@@ -58,6 +62,10 @@ type tokenSnapshot struct {
 	DrainingRuns  int           `json:"draining_runs"`
 	CooldownUntil time.Time     `json:"cooldown_until,omitempty"`
 	LastError     string        `json:"last_error,omitempty"`
+	TotalRequests int           `json:"total_requests"`
+	SuccessCount  int           `json:"success_count"`
+	FailureCount  int           `json:"failure_count"`
+	LastUsedAt    time.Time     `json:"last_used_at,omitempty"`
 }
 
 type runSnapshot struct {
@@ -187,6 +195,13 @@ func (m *RunManager) Cooldown(lease *runLease, duration time.Duration, reason st
 	lease.pool.markCooldown(duration, reason)
 }
 
+func (m *RunManager) RecordResult(lease *runLease, success bool) {
+	if lease == nil || lease.pool == nil || lease.run == nil {
+		return
+	}
+	lease.pool.recordResult(success)
+}
+
 func (m *RunManager) Snapshots() []tokenSnapshot {
 	pools := m.currentPools()
 	snapshots := make([]tokenSnapshot, 0, len(pools))
@@ -274,6 +289,8 @@ func (p *tokenPool) acquire(ctx context.Context, agentID string) (*runLease, err
 	}
 	run.inflight++
 	run.requestCount++
+	p.totalRequests++
+	p.lastUsedAt = time.Now()
 	return &runLease{pool: p, run: run}, nil
 }
 
@@ -451,6 +468,16 @@ func (p *tokenPool) markCooldown(duration time.Duration, reason string) {
 	}
 }
 
+func (p *tokenPool) recordResult(success bool) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if success {
+		p.successCount++
+		return
+	}
+	p.failureCount++
+}
+
 func (p *tokenPool) snapshot() tokenSnapshot {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -460,6 +487,10 @@ func (p *tokenPool) snapshot() tokenSnapshot {
 		DrainingRuns:  len(p.draining),
 		CooldownUntil: p.cooldownUntil,
 		LastError:     p.lastError,
+		TotalRequests: p.totalRequests,
+		SuccessCount:  p.successCount,
+		FailureCount:  p.failureCount,
+		LastUsedAt:    p.lastUsedAt,
 	}
 	for agentID, run := range p.runs {
 		snapshot.Runs = append(snapshot.Runs, runSnapshot{
