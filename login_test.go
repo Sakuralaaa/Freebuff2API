@@ -114,3 +114,51 @@ func TestCreateLoginSessionParsesNestedSnakeCasePayload(t *testing.T) {
 		t.Fatalf("expected login_url in response, got %s", body)
 	}
 }
+
+func TestCreateLoginSessionParsesNumericExpiresAtAndDeepPayload(t *testing.T) {
+	origClient := freebuffLoginHTTPClient
+	t.Cleanup(func() {
+		freebuffLoginHTTPClient = origClient
+	})
+	freebuffLoginHTTPClient = &http.Client{
+		Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+			if req.Method != http.MethodPost || req.URL.String() != freebuffCLICodeURL {
+				t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(strings.NewReader(`{
+					"payload":{
+						"data":{
+							"fingerprintHash":"hash-numeric",
+							"expiresAt":1735689600,
+							"loginUrl":"https://freebuff.com/login/numeric"
+						}
+					}
+				}`)),
+				Header: make(http.Header),
+			}, nil
+		}),
+	}
+
+	srv := newLoginTestServer()
+	req := httptest.NewRequest(http.MethodPost, "/api/login/session", strings.NewReader(`{}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	srv.Handler().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `"fingerprint_hash":"hash-numeric"`) {
+		t.Fatalf("expected fingerprint_hash in response, got %s", body)
+	}
+	if !strings.Contains(body, `"expires_at":"1735689600"`) {
+		t.Fatalf("expected expires_at in response, got %s", body)
+	}
+	if !strings.Contains(body, `"login_url":"https://freebuff.com/login/numeric"`) {
+		t.Fatalf("expected login_url in response, got %s", body)
+	}
+}
