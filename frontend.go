@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	"io/fs"
+	"log"
 	"net/http"
 	"strings"
 )
@@ -11,6 +12,7 @@ import (
 var embeddedFrontendFiles embed.FS
 
 var frontendFS = mustFrontendFS()
+var frontendIndex = mustReadFrontendIndex()
 
 func mustFrontendFS() fs.FS {
 	fsys, err := fs.Sub(embeddedFrontendFiles, "web")
@@ -18,6 +20,14 @@ func mustFrontendFS() fs.FS {
 		panic(err)
 	}
 	return fsys
+}
+
+func mustReadFrontendIndex() []byte {
+	data, err := fs.ReadFile(frontendFS, "index.html")
+	if err != nil {
+		panic(err)
+	}
+	return data
 }
 
 func (s *Server) handleFrontendIndex(w http.ResponseWriter, r *http.Request) {
@@ -29,10 +39,15 @@ func (s *Server) handleFrontendIndex(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-
-	clone := r.Clone(r.Context())
-	clone.URL.Path = "/index.html"
-	http.FileServer(http.FS(frontendFS)).ServeHTTP(w, clone)
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	if _, err := w.Write(frontendIndex); err != nil {
+		if s.logger != nil {
+			s.logger.Printf("write frontend index failed: %v", err)
+		} else {
+			log.Printf("write frontend index failed: %v", err)
+		}
+	}
 }
 
 func requiresAdminSession(path string) bool {
