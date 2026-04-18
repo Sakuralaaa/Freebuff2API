@@ -62,6 +62,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/login/status", s.handleLoginStatus)
 	mux.HandleFunc("/api/policy", s.handlePolicy)
 	mux.HandleFunc("/api/model-aliases", s.handleModelAliases)
+	mux.HandleFunc("/api/accounts", s.handleAccounts)
+	mux.HandleFunc("/api/accounts/", s.handleAccountAction)
 	mux.HandleFunc("/v1/models", s.handleModels)
 	mux.HandleFunc("/v1/chat/completions", s.handleChatCompletions)
 	mux.HandleFunc("/metrics", s.handleMetrics)
