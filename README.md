@@ -98,6 +98,7 @@ After authorization, the token is available immediately without restart; the pag
 - Set service protocol/port type to **HTTP** in Zeabur. Let Zeabur handle external HTTPS termination.
 - Do **not** enable any force-HTTPS redirect option/env (for example `FORCE_HTTPS`).
 - Keep app listen address as `LISTEN_ADDR=:8080` (or your internal HTTP port).
+- Access UI with `/` or `/ui` directly; `/ui` is handled without trailing-slash redirect to reduce proxy rewrite loop risks.
 
 ### Docker
 

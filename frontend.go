@@ -50,6 +50,26 @@ func (s *Server) handleFrontendIndex(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (s *Server) handleFrontendUI(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeOpenAIError(w, http.StatusMethodNotAllowed, "method not allowed", "invalid_request_error", "")
+		return
+	}
+	if r.URL.Path != "/ui" {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	if _, err := w.Write(frontendIndex); err != nil {
+		if s.logger != nil {
+			s.logger.Printf("write frontend /ui failed: %v", err)
+		} else {
+			log.Printf("write frontend /ui failed: %v", err)
+		}
+	}
+}
+
 func requiresAdminSession(path string) bool {
 	return strings.HasPrefix(path, "/api/login/") || path == "/api/admin/logout"
 }
