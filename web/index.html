@@ -23,6 +23,8 @@
       --shadow: 0 12px 28px rgba(var(--rose-500-rgb), 0.16);
       --radius-lg: 18px;
       --radius-md: 12px;
+      --textarea-min-height: 96px;
+      --status-min-height: 42px;
     }
 
     * { box-sizing: border-box; }
@@ -118,7 +120,7 @@
     }
 
     textarea {
-      min-height: 96px;
+      min-height: var(--textarea-min-height);
       resize: vertical;
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     }
@@ -182,7 +184,7 @@
       background: var(--rose-50);
       color: var(--text-700);
       padding: 10px 12px;
-      min-height: 42px;
+      min-height: var(--status-min-height);
       display: flex;
       align-items: center;
       font-size: 14px;
