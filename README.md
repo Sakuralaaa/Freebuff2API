@@ -93,6 +93,12 @@ After authorization, the token is available immediately without restart; the pag
 
 ## Deployment
 
+### Zeabur (avoid redirect loops)
+
+- Set service protocol/port type to **HTTP** in Zeabur. Let Zeabur handle external HTTPS termination.
+- Do **not** enable any force-HTTPS redirect option/env (for example `FORCE_HTTPS`).
+- Keep app listen address as `LISTEN_ADDR=:8080` (or your internal HTTP port).
+
 ### Docker
 
 Pre-built multi-arch images are available on GHCR (image path follows your repository owner/name automatically):

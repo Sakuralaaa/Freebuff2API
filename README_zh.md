@@ -92,6 +92,12 @@ npm i -g freebuff
 
 ## 部署运行
 
+### Zeabur 部署（避免重定向循环）
+
+- 在 Zeabur 中将服务端口协议类型设置为 **HTTP**，外层 HTTPS 交给 Zeabur 网关处理。
+- 不要启用任何强制 HTTPS 重定向开关/环境变量（例如 `FORCE_HTTPS`）。
+- 应用内部继续监听 `LISTEN_ADDR=:8080`（或你的内部 HTTP 端口）。
+
 ### Docker 部署
 
 预构建多架构镜像已发布至 GHCR（仓库名自动跟随 `owner/repo`）：
