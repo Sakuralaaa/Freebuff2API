@@ -14,8 +14,8 @@ import (
 )
 
 type Server struct {
-	cfg     Config
-	logger  *log.Logger
+	cfg      Config
+	logger   *log.Logger
 	client   *UpstreamClient
 	runs     *RunManager
 	registry *ModelRegistry
@@ -27,8 +27,8 @@ func NewServer(cfg Config, logger *log.Logger, registry *ModelRegistry) *Server 
 	runManager := NewRunManager(cfg, client, logger)
 
 	return &Server{
-		cfg:     cfg,
-		logger:  logger,
+		cfg:      cfg,
+		logger:   logger,
 		client:   client,
 		runs:     runManager,
 		registry: registry,
@@ -38,7 +38,11 @@ func NewServer(cfg Config, logger *log.Logger, registry *ModelRegistry) *Server 
 
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
+	mux.HandleFunc("/", s.handleFrontendIndex)
+	mux.Handle("/ui/", http.StripPrefix("/ui/", http.FileServer(http.FS(frontendFS))))
 	mux.HandleFunc("/healthz", s.handleHealthz)
+	mux.HandleFunc("/api/login/session", s.handleCreateLoginSession)
+	mux.HandleFunc("/api/login/status", s.handleLoginStatus)
 	mux.HandleFunc("/v1/models", s.handleModels)
 	mux.HandleFunc("/v1/chat/completions", s.handleChatCompletions)
 	return s.withMiddleware(mux)
@@ -54,6 +58,10 @@ func (s *Server) Shutdown(ctx context.Context) {
 
 func (s *Server) withMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if isPublicPath(r.URL.Path) {
+			next.ServeHTTP(w, r)
+			return
+		}
 		if len(s.cfg.APIKeys) > 0 && !s.authorized(r) {
 			writeOpenAIError(w, http.StatusUnauthorized, "invalid proxy api key", "authentication_error", "")
 			return

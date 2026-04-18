@@ -10,6 +10,7 @@ Freebuff2API is an OpenAI-compatible proxy server for [Freebuff](https://freebuf
 - **Stealth Request Handling** — Dynamic, randomized client fingerprints that mimic official Freebuff SDK behavior.
 - **Multi-Token Rotation** — Cycle through multiple auth tokens with automatic periodic rotation.
 - **HTTP Proxy Support** — Route all outbound traffic through a configurable upstream proxy.
+- **Built-in Web Console** — Complete Freebuff login in browser and copy `AUTH_TOKENS` directly.
 
 ## Getting Auth Tokens
 
@@ -76,17 +77,27 @@ Configuration is managed via a JSON file and/or environment variables. The JSON 
 
 Environment variables override JSON values when both are set.
 
+## Web UI + Login Integration
+
+After startup, open `http://<host>:8080/` to use the built-in console.  
+The core logic from `freebuff_login_and_print.py` is now integrated into service endpoints:
+
+- `POST /api/login/session`: create a login session and return `login_url`
+- `GET /api/login/status`: poll authorization status and return user/token data
+
+After authorization, copy the generated `AUTH_TOKENS` JSON array from the page.
+
 ## Deployment
 
 ### Docker
 
-Pre-built multi-arch images are available on GHCR:
+Pre-built multi-arch images are available on GHCR (image path follows your repository owner/name automatically):
 
 ```bash
 docker run -d --name Freebuff2API \
   -p 8080:8080 \
   -e AUTH_TOKENS="token1,token2" \
-  ghcr.io/quorinex/freebuff2api:latest
+  ghcr.io/<your-github-owner>/freebuff2api:latest
 ```
 
 Build from source:
@@ -95,6 +106,16 @@ Build from source:
 docker build -t Freebuff2API .
 docker run -d -p 8080:8080 -e AUTH_TOKENS="token1,token2" Freebuff2API
 ```
+
+## GitHub Actions Docker Auto Build
+
+The repository includes `.github/workflows/docker.yml` to auto-build and push multi-arch images (amd64/arm64) to GHCR on:
+
+- push to `main`
+- push tags matching `v*`
+- manual `workflow_dispatch`
+
+Published tags include `latest` (default branch), git tag, and commit SHA.
 
 ### Build from Source
 
