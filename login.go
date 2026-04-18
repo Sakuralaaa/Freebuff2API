@@ -235,8 +235,8 @@ func scalarString(value any) string {
 	case string:
 		return typed
 	case float64:
-		if isSafeInt64Float(typed) {
-			return strconv.FormatInt(int64(typed), 10)
+		if isWholeFiniteFloat(typed) {
+			return strconv.FormatFloat(typed, 'f', 0, 64)
 		}
 		return strconv.FormatFloat(typed, 'f', -1, 64)
 	case map[string]any, []any:
@@ -246,9 +246,9 @@ func scalarString(value any) string {
 	}
 }
 
-func isSafeInt64Float(value float64) bool {
+func isWholeFiniteFloat(value float64) bool {
 	if math.IsNaN(value) || math.IsInf(value, 0) {
 		return false
 	}
-	return math.Trunc(value) == value && value >= math.MinInt64 && value <= math.MaxInt64
+	return math.Trunc(value) == value
 }
