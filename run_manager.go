@@ -18,6 +18,7 @@ type RunManager struct {
 	mu     sync.RWMutex
 	pools  []*tokenPool
 	next   atomic.Uint64
+	sticky atomic.Uint64
 	policy runtimePolicySnapshot
 
 	stopCh chan struct{}
@@ -41,6 +42,7 @@ type tokenPool struct {
 	totalRequests int
 	successCount  int
 	failureCount  int
+	failStreak    int
 	lastUsedAt    time.Time
 	maxConcurrent int
 	healthy       bool
@@ -184,12 +186,22 @@ func (m *RunManager) Acquire(ctx context.Context, agentID string) (*runLease, er
 		return nil, errors.New("no auth tokens configured")
 	}
 
-	startIndex := int(m.next.Add(1)-1) % len(pools)
+	policy := m.PolicySnapshot()
+	startIndex := 0
+	if policy.RoutingMode == routingModePriorityFill {
+		startIndex = int(m.sticky.Load() % uint64(len(pools)))
+	} else {
+		startIndex = int(m.next.Add(1)-1) % len(pools)
+	}
 	var errs []string
 	for offset := 0; offset < len(pools); offset++ {
-		pool := pools[(startIndex+offset)%len(pools)]
+		index := (startIndex + offset) % len(pools)
+		pool := pools[index]
 		lease, err := pool.acquire(ctx, agentID)
 		if err == nil {
+			if policy.RoutingMode == routingModePriorityFill {
+				m.sticky.Store(uint64(index))
+			}
 			return lease, nil
 		}
 		errs = append(errs, fmt.Sprintf("%s: %v", pool.name, err))
@@ -224,6 +236,17 @@ func (m *RunManager) RecordResult(lease *runLease, success bool) {
 		return
 	}
 	lease.pool.recordResult(success)
+	if success {
+		return
+	}
+	policy := m.PolicySnapshot()
+	if policy.RoutingMode != routingModePriorityFill {
+		return
+	}
+	if lease.pool.failureStreak() < policy.PriorityFailoverStep {
+		return
+	}
+	m.switchStickyPool(lease.pool)
 }
 
 func (m *RunManager) Snapshots() []tokenSnapshot {
@@ -551,9 +574,17 @@ func (p *tokenPool) recordResult(success bool) {
 	defer p.mu.Unlock()
 	if success {
 		p.successCount++
+		p.failStreak = 0
 		return
 	}
 	p.failureCount++
+	p.failStreak++
+}
+
+func (p *tokenPool) failureStreak() int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.failStreak
 }
 
 func (p *tokenPool) snapshot() tokenSnapshot {
@@ -689,4 +720,26 @@ func (m *RunManager) RemoveToken(name string) error {
 		pool.setEnabled(false)
 	}
 	return nil
+}
+
+func (m *RunManager) switchStickyPool(current *tokenPool) {
+	if current == nil {
+		return
+	}
+	pools := m.currentPools()
+	if len(pools) <= 1 {
+		return
+	}
+	currentIndex := -1
+	for index, pool := range pools {
+		if pool == current {
+			currentIndex = index
+			break
+		}
+	}
+	if currentIndex == -1 {
+		return
+	}
+	nextIndex := (currentIndex + 1) % len(pools)
+	m.sticky.Store(uint64(nextIndex))
 }

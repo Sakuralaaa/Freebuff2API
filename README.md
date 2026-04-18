@@ -73,7 +73,9 @@ Configuration is managed via a JSON file and/or environment variables. The JSON 
     "PER_TOKEN_CONCURRENCY": 8,
     "HEALTH_CHECK_ENABLED": true,
     "HEALTH_CHECK_INTERVAL": "3m",
-    "HEALTH_FAILURE_THRESHOLD": 3
+    "HEALTH_FAILURE_THRESHOLD": 3,
+    "ROUTING_MODE": "round_robin",
+    "PRIORITY_FAILOVER_STEP": 3
   }
 }
 ```
@@ -92,7 +94,7 @@ Configuration is managed via a JSON file and/or environment variables. The JSON 
 | `HTTP_PROXY` | HTTP proxy for outbound requests |
 | `ADMIN_PASSWORD` | Web admin password (when set, web login APIs require admin sign-in) |
 | `MODEL_ALIASES` | Alias mapping exposed in `/api/model-aliases` and applied on `/v1/chat/completions` |
-| `POLICY` | Runtime policy defaults for retry/backoff, token concurrency, and health checks |
+| `POLICY` | Runtime policy defaults for retry/backoff, token concurrency, health checks, and routing mode (`round_robin` / `priority_fill`) |
 
 Environment variables override JSON values when both are set.
 
