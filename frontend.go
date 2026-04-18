@@ -71,7 +71,7 @@ func (s *Server) handleFrontendUI(w http.ResponseWriter, r *http.Request) {
 }
 
 func requiresAdminSession(path string) bool {
-	return strings.HasPrefix(path, "/api/login/") || path == "/api/admin/logout"
+	return strings.HasPrefix(path, "/api/login/") || path == "/api/admin/logout" || path == "/api/stats" || strings.HasPrefix(path, "/api/export/")
 }
 
 func requiresAPIKeyAuth(path string) bool {

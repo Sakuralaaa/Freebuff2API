@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -21,6 +22,7 @@ type Server struct {
 	registry *ModelRegistry
 	admin    *adminAuth
 	started  time.Time
+	stats    *callStats
 }
 
 func NewServer(cfg Config, logger *log.Logger, registry *ModelRegistry) *Server {
@@ -35,6 +37,7 @@ func NewServer(cfg Config, logger *log.Logger, registry *ModelRegistry) *Server 
 		registry: registry,
 		admin:    newAdminAuth(cfg.AdminPassword),
 		started:  time.Now(),
+		stats:    newCallStats(),
 	}
 }
 
@@ -47,6 +50,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/admin/status", s.handleAdminStatus)
 	mux.HandleFunc("/api/admin/login", s.handleAdminLogin)
 	mux.HandleFunc("/api/admin/logout", s.handleAdminLogout)
+	mux.HandleFunc("/api/stats", s.handleStats)
+	mux.HandleFunc("/api/export/json", s.handleExportJSON)
 	mux.HandleFunc("/api/login/session", s.handleCreateLoginSession)
 	mux.HandleFunc("/api/login/status", s.handleLoginStatus)
 	mux.HandleFunc("/v1/models", s.handleModels)
@@ -172,10 +177,17 @@ func (s *Server) handleChatCompletions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	startTime := time.Now()
+	var recordResultOnce sync.Once
+	recordResult := func(success bool) {
+		recordResultOnce.Do(func() {
+			s.stats.Record(requestedModel, success)
+		})
+	}
 
 	for attempt := 0; attempt < 2; attempt++ {
 		lease, err := s.runs.Acquire(r.Context(), agentID)
 		if err != nil {
+			recordResult(false)
 			writeOpenAIError(w, http.StatusBadGateway, "no healthy upstream auth token available", "server_error", "")
 			return
 		}
@@ -191,7 +203,9 @@ func (s *Server) handleChatCompletions(w http.ResponseWriter, r *http.Request) {
 
 		resp, errorBody, err := s.client.ChatCompletions(r.Context(), lease.pool.token, upstreamBody)
 		if err != nil {
+			s.runs.RecordResult(lease, false)
 			s.runs.Release(lease)
+			recordResult(false)
 			writeOpenAIError(w, http.StatusBadGateway, err.Error(), "server_error", "")
 			return
 		}
@@ -204,12 +218,15 @@ func (s *Server) handleChatCompletions(w http.ResponseWriter, r *http.Request) {
 				s.logger.Printf("[%s] proxy response copy failed: %v", lease.pool.name, err)
 			}
 			s.logger.Printf("[%s] Request completed successfully in %v (status: %d)", lease.pool.name, time.Since(startTime).Round(time.Millisecond), resp.StatusCode)
+			s.runs.RecordResult(lease, true)
 			s.runs.Release(lease)
+			recordResult(true)
 			return
 		}
 
 		if isRunInvalid(resp.StatusCode, errorBody) {
 			s.logger.Printf("%s: run %s invalid, rotating and retrying", lease.pool.name, lease.run.id)
+			s.runs.RecordResult(lease, false)
 			s.runs.Invalidate(lease, strings.TrimSpace(string(errorBody)))
 			s.runs.Release(lease)
 			continue
@@ -219,12 +236,15 @@ func (s *Server) handleChatCompletions(w http.ResponseWriter, r *http.Request) {
 			s.runs.Cooldown(lease, 30*time.Minute, "upstream auth rejected token")
 		}
 
+		s.runs.RecordResult(lease, false)
 		s.runs.Release(lease)
 		s.logger.Printf("[%s] upstream error response: %s", lease.pool.name, string(errorBody))
+		recordResult(false)
 		writePassthroughError(w, resp.StatusCode, errorBody)
 		return
 	}
 
+	recordResult(false)
 	writeOpenAIError(w, http.StatusBadGateway, "upstream run expired twice in a row", "server_error", "")
 }
 
