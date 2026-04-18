@@ -327,7 +327,11 @@
       <div class="card" style="grid-column: 1 / -1;">
         <div class="card-head">
           <h2>统计面板</h2>
-          <button id="statsRefreshBtn" class="ghost btn-inline">刷新统计</button>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button id="statsRefreshBtn" class="ghost btn-inline">刷新统计</button>
+            <button id="exportJsonBtn" class="ghost btn-inline">导出 JSON</button>
+            <button id="copyTokensBtn" class="ghost btn-inline">复制 AUTH_TOKENS</button>
+          </div>
         </div>
         <div class="stats-grid">
           <div class="stat-box">
@@ -414,6 +418,8 @@
       el("createBtn").disabled = disabled;
       el("pollBtn").disabled = disabled || !state.fingerprint_id;
       el("statsRefreshBtn").disabled = disabled;
+      el("exportJsonBtn").disabled = disabled;
+      el("copyTokensBtn").disabled = disabled;
       if (disabled) setStatus("请先输入管理密码登录。");
     }
 
@@ -482,6 +488,30 @@
       if (!res.ok) throw new Error(data?.error?.message || "获取统计失败");
       renderStats(data);
       return data;
+    }
+
+    async function fetchExportData() {
+      const res = await fetch("/api/export/json");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error?.message || "导出失败");
+      return data;
+    }
+
+    async function exportJSONFile() {
+      const data = await fetchExportData();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `freebuff-export-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    async function copyAuthTokens() {
+      const data = await fetchExportData();
+      const tokens = Array.isArray(data?.auth_tokens) ? data.auth_tokens : [];
+      await navigator.clipboard.writeText(JSON.stringify(tokens));
     }
 
     async function fetchAdminStatus() {
@@ -584,9 +614,34 @@
       try { await fetchStats(); setStatus("统计已更新。", "ok"); } catch (e) { setStatus(e.message, "err"); }
     });
 
-    fetchAdminStatus()
-      .then(() => fetchStats())
-      .catch((e) => setStatus(e.message, "err"));
+    el("exportJsonBtn").addEventListener("click", async () => {
+      try { await exportJSONFile(); setStatus("JSON 导出成功。", "ok"); } catch (e) { setStatus(e.message, "err"); }
+    });
+
+    el("copyTokensBtn").addEventListener("click", async () => {
+      try { await copyAuthTokens(); setStatus("AUTH_TOKENS 已复制。", "ok"); } catch (e) { setStatus(e.message, "err"); }
+    });
+
+    async function initPage() {
+      let authStatus;
+      try {
+        authStatus = await fetchAdminStatus();
+      } catch (e) {
+        setStatus(e.message, "err");
+        return;
+      }
+      if (!authStatus?.enabled || authStatus?.authenticated) {
+        try {
+          await fetchStats();
+        } catch (e) {
+          setStatus(`统计加载失败：${e.message}`, "err");
+        }
+      } else {
+        renderStats({});
+      }
+    }
+
+    initPage();
   </script>
 </body>
 </html>

@@ -211,6 +211,18 @@ func (m *RunManager) Snapshots() []tokenSnapshot {
 	return snapshots
 }
 
+func (m *RunManager) Tokens() []string {
+	pools := m.currentPools()
+	tokens := make([]string, 0, len(pools))
+	for _, pool := range pools {
+		token := strings.TrimSpace(pool.token)
+		if token != "" {
+			tokens = append(tokens, token)
+		}
+	}
+	return tokens
+}
+
 // AddToken registers an auth token into the runtime pool and returns the pool
 // name, whether it was newly added, and any error. This method is safe for
 // concurrent use.

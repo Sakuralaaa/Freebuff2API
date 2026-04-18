@@ -51,6 +51,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/admin/login", s.handleAdminLogin)
 	mux.HandleFunc("/api/admin/logout", s.handleAdminLogout)
 	mux.HandleFunc("/api/stats", s.handleStats)
+	mux.HandleFunc("/api/export/json", s.handleExportJSON)
 	mux.HandleFunc("/api/login/session", s.handleCreateLoginSession)
 	mux.HandleFunc("/api/login/status", s.handleLoginStatus)
 	mux.HandleFunc("/v1/models", s.handleModels)

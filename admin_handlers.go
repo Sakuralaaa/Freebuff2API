@@ -123,3 +123,39 @@ func aggregateTokenStats(tokens []tokenSnapshot) tokenStatsAggregate {
 	}
 	return result
 }
+
+func (s *Server) handleExportJSON(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeOpenAIError(w, http.StatusMethodNotAllowed, "method not allowed", "invalid_request_error", "")
+		return
+	}
+
+	authTokens := s.runs.Tokens()
+	statsSnapshot := s.stats.Snapshot()
+	tokenState := s.runs.Snapshots()
+	aggregatedTokenStats := aggregateTokenStats(tokenState)
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"name":        "Freebuff",
+		"exported_at": time.Now().UTC(),
+		"auth_tokens": authTokens,
+		"stats": map[string]any{
+			"calls":  statsSnapshot,
+			"tokens": map[string]any{"total": len(tokenState), "active_runs": aggregatedTokenStats.activeRuns, "draining_runs": aggregatedTokenStats.drainingRuns, "total_requests": aggregatedTokenStats.totalRequests, "success_count": aggregatedTokenStats.totalSuccess, "failure_count": aggregatedTokenStats.totalFailed, "items": tokenState},
+		},
+		"integration": map[string]any{
+			"auth_tokens_env": "AUTH_TOKENS",
+			"config_template": map[string]any{
+				"LISTEN_ADDR":       s.cfg.ListenAddr,
+				"UPSTREAM_BASE_URL": s.cfg.UpstreamBaseURL,
+				"AUTH_TOKENS":       authTokens,
+				"ROTATION_INTERVAL": s.cfg.RotationInterval.String(),
+				"REQUEST_TIMEOUT":   s.cfg.RequestTimeout.String(),
+			},
+			"notes": []string{
+				"AUTH_TOKENS 可直接用于其他兼容 OpenAI Proxy 项目。",
+				"建议在目标项目中按需配置 API_KEYS 和 ADMIN_PASSWORD。",
+			},
+		},
+	})
+}

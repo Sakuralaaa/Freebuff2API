@@ -54,3 +54,39 @@ func TestStatsEndpointReturnsSnapshot(t *testing.T) {
 		t.Fatalf("expected tokens field in stats payload")
 	}
 }
+
+func TestExportJSONEndpointMethodNotAllowed(t *testing.T) {
+	srv := newStatsTestServer()
+	req := httptest.NewRequest(http.MethodPost, "/api/export/json", nil)
+	rec := httptest.NewRecorder()
+
+	srv.Handler().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("expected 405, got %d", rec.Code)
+	}
+}
+
+func TestExportJSONEndpointReturnsPayload(t *testing.T) {
+	srv := newStatsTestServer()
+	req := httptest.NewRequest(http.MethodGet, "/api/export/json", nil)
+	rec := httptest.NewRecorder()
+
+	srv.Handler().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("expected JSON payload: %v", err)
+	}
+
+	if _, ok := payload["auth_tokens"]; !ok {
+		t.Fatalf("expected auth_tokens field in export payload")
+	}
+	if _, ok := payload["integration"]; !ok {
+		t.Fatalf("expected integration field in export payload")
+	}
+}
