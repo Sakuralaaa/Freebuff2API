@@ -422,7 +422,7 @@
       return Number.isFinite(n) ? n : 0;
     }
 
-    function esc(v) {
+    function escapeHtml(v) {
       return String(v ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[ch]));
     }
 
@@ -436,12 +436,12 @@
       body.innerHTML = rows.map((token) => {
         const runCount = Array.isArray(token?.runs) ? token.runs.length : 0;
         return `<tr>
-          <td>${esc(token?.name || "-")}</td>
+          <td>${token?.name ? escapeHtml(token.name) : "-"}</td>
           <td>${numberValue(token?.total_requests)}</td>
           <td>${numberValue(token?.success_count)}</td>
           <td>${numberValue(token?.failure_count)}</td>
           <td>${runCount}</td>
-          <td>${esc(formatTime(token?.last_used_at))}</td>
+          <td>${formatTime(token?.last_used_at)}</td>
         </tr>`;
       }).join("");
     }
@@ -454,7 +454,7 @@
         return;
       }
       body.innerHTML = rows.map((model) => `<tr>
-        <td>${esc(model?.model || "-")}</td>
+        <td>${model?.model ? escapeHtml(model.model) : "-"}</td>
         <td>${numberValue(model?.requests)}</td>
         <td>${numberValue(model?.success)}</td>
         <td>${numberValue(model?.failed)}</td>
