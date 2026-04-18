@@ -31,12 +31,17 @@ func main() {
 	}
 
 	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.MaxIdleConns = 200
+	transport.MaxIdleConnsPerHost = 100
+	transport.MaxConnsPerHost = 0
+	transport.IdleConnTimeout = 90 * time.Second
+	transport.ExpectContinueTimeout = time.Second
 	if cfg.HTTPProxy != "" {
 		importURL, _ := url.Parse(cfg.HTTPProxy)
 		transport.Proxy = http.ProxyURL(importURL)
 	}
 	httpClient := &http.Client{Transport: transport, Timeout: 15 * time.Second}
-	
+
 	registry := NewModelRegistry(httpClient, logger)
 	registry.Start(context.Background())
 	defer registry.Stop()

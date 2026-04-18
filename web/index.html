@@ -357,6 +357,22 @@
             <div class="stat-value" id="statTokenCount">0</div>
             <div class="stat-label">Token 数量</div>
           </div>
+          <div class="stat-card">
+            <div class="stat-value" id="statRetries">0</div>
+            <div class="stat-label">重试次数</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="stat429">0</div>
+            <div class="stat-label">429 次数</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="statInflight">0</div>
+            <div class="stat-label">当前并发</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="statHealthyTokens">0</div>
+            <div class="stat-label">健康 Token</div>
+          </div>
         </div>
 
         <div class="meta">最后请求时间：<code id="lastRequestAt">-</code></div>
@@ -399,6 +415,34 @@
       </div>
 
       <div class="card wide">
+        <div class="card-head">
+          <h2>策略中心</h2>
+          <div class="card-actions" style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button id="policyRefreshBtn" class="ghost btn-inline">加载策略</button>
+            <button id="policySaveBtn" class="btn-inline">保存策略</button>
+          </div>
+        </div>
+        <div class="row">
+          <label for="policyJson">策略 JSON</label>
+          <textarea id="policyJson" placeholder='{"max_retries":2,...}'></textarea>
+        </div>
+      </div>
+
+      <div class="card wide">
+        <div class="card-head">
+          <h2>模型别名</h2>
+          <div class="card-actions" style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button id="aliasesRefreshBtn" class="ghost btn-inline">加载别名</button>
+            <button id="aliasesSaveBtn" class="btn-inline">保存别名</button>
+          </div>
+        </div>
+        <div class="row">
+          <label for="aliasesJson">Aliases JSON</label>
+          <textarea id="aliasesJson" placeholder='{"gpt-4o":"google/gemini-3.1-pro-preview"}'></textarea>
+        </div>
+      </div>
+
+      <div class="card wide">
         <h2>AUTH_TOKENS（兼容旧部署）</h2>
         <textarea id="tokens" readonly></textarea>
       </div>
@@ -428,6 +472,10 @@
       el("statsRefreshBtn").disabled = disabled;
       el("exportJsonBtn").disabled = disabled;
       el("copyTokensBtn").disabled = disabled;
+      el("policyRefreshBtn").disabled = disabled;
+      el("policySaveBtn").disabled = disabled;
+      el("aliasesRefreshBtn").disabled = disabled;
+      el("aliasesSaveBtn").disabled = disabled;
       if (disabled) setStatus("请先输入管理密码登录。");
     }
 
@@ -485,6 +533,10 @@
       el("statSuccess").textContent = numberValue(calls.success_count);
       el("statFailed").textContent = numberValue(calls.failure_count);
       el("statTokenCount").textContent = numberValue(tokens.total);
+      el("statRetries").textContent = numberValue(calls.retry_count);
+      el("stat429").textContent = numberValue(calls.status_429_count);
+      el("statInflight").textContent = numberValue(tokens.inflight);
+      el("statHealthyTokens").textContent = numberValue(tokens.healthy_count);
       el("lastRequestAt").textContent = formatTime(calls.last_request_at);
       renderTokenStats(tokens.items);
       renderModelStats(calls.by_model);
@@ -530,6 +582,58 @@
       return data;
     }
 
+    async function fetchPolicy() {
+      const res = await fetch("/api/policy");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error?.message || "获取策略失败");
+      el("policyJson").value = JSON.stringify(data?.policy || {}, null, 2);
+      return data;
+    }
+
+    async function savePolicy() {
+      let policy;
+      try {
+        policy = JSON.parse(el("policyJson").value || "{}");
+      } catch {
+        throw new Error("策略 JSON 格式无效");
+      }
+      const res = await fetch("/api/policy", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ policy })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error?.message || "保存策略失败");
+      el("policyJson").value = JSON.stringify(data?.policy || {}, null, 2);
+      return data;
+    }
+
+    async function fetchAliases() {
+      const res = await fetch("/api/model-aliases");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error?.message || "获取模型别名失败");
+      el("aliasesJson").value = JSON.stringify(data?.aliases || {}, null, 2);
+      return data;
+    }
+
+    async function saveAliases() {
+      let aliases;
+      try {
+        aliases = JSON.parse(el("aliasesJson").value || "{}");
+      } catch {
+        throw new Error("模型别名 JSON 格式无效");
+      }
+      const res = await fetch("/api/model-aliases", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ aliases })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error?.message || "保存模型别名失败");
+      el("aliasesJson").value = JSON.stringify(data?.aliases || {}, null, 2);
+      return data;
+    }
+
     async function loginAdmin() {
       const password = el("adminPassword").value.trim();
       if (!password) throw new Error("请输入管理密码");
@@ -541,7 +645,7 @@
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error?.message || "登录失败");
       await fetchAdminStatus();
-      await fetchStats();
+      await Promise.all([fetchStats(), fetchPolicy(), fetchAliases()]);
       setStatus("管理登录成功。", "ok");
     }
 
@@ -630,6 +734,22 @@
       try { await copyAuthTokens(); setStatus("AUTH_TOKENS 已复制。", "ok"); } catch (e) { setStatus(e.message, "err"); }
     });
 
+    el("policyRefreshBtn").addEventListener("click", async () => {
+      try { await fetchPolicy(); setStatus("策略已刷新。", "ok"); } catch (e) { setStatus(e.message, "err"); }
+    });
+
+    el("policySaveBtn").addEventListener("click", async () => {
+      try { await savePolicy(); await fetchStats(); setStatus("策略已保存并生效。", "ok"); } catch (e) { setStatus(e.message, "err"); }
+    });
+
+    el("aliasesRefreshBtn").addEventListener("click", async () => {
+      try { await fetchAliases(); setStatus("模型别名已刷新。", "ok"); } catch (e) { setStatus(e.message, "err"); }
+    });
+
+    el("aliasesSaveBtn").addEventListener("click", async () => {
+      try { await saveAliases(); setStatus("模型别名已保存。", "ok"); } catch (e) { setStatus(e.message, "err"); }
+    });
+
     async function initializeDashboard() {
       let authStatus;
       try {
@@ -640,7 +760,7 @@
       }
       if (!authStatus?.enabled || authStatus?.authenticated) {
         try {
-          await fetchStats();
+          await Promise.all([fetchStats(), fetchPolicy(), fetchAliases()]);
         } catch (e) {
           setStatus(`统计加载失败：${e.message}`, "err");
         }
