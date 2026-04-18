@@ -9,6 +9,7 @@
       --rose-50: #fff1f8;
       --rose-100: #ffe4f1;
       --rose-200: #ffcce5;
+      --rose-300: #ffb2d7;
       --rose-500: #e91e63;
       --rose-600: #d81b60;
       --rose-700: #bf1654;
@@ -86,6 +87,7 @@
 
     .row { margin-bottom: 12px; }
     .row:last-child { margin-bottom: 0; }
+    .row-top-gap { margin-top: 10px; }
 
     label {
       display: block;
@@ -145,7 +147,7 @@
     .ghost {
       background: #fff;
       color: var(--rose-700);
-      border: 1px solid var(--rose-300, #ffb2d7);
+      border: 1px solid var(--rose-300);
       box-shadow: none;
     }
 
@@ -238,7 +240,7 @@
       <div class="card">
         <h2>授权状态</h2>
         <button id="pollBtn" disabled>2) 轮询登录状态</button>
-        <div class="row" style="margin-top:10px;">
+        <div class="row row-top-gap">
           <div id="status"></div>
         </div>
       </div>
