@@ -76,6 +76,8 @@ func requiresAdminSession(path string) bool {
 		path == "/api/stats" ||
 		path == "/api/policy" ||
 		path == "/api/model-aliases" ||
+		path == "/api/accounts" ||
+		strings.HasPrefix(path, "/api/accounts/") ||
 		strings.HasPrefix(path, "/api/export/")
 }
 

@@ -35,6 +35,7 @@ type tokenPool struct {
 	mu            sync.Mutex
 	runs          map[string]*managedRun // agentID → current run
 	draining      []*managedRun
+	enabled       bool
 	lastError     string
 	cooldownUntil time.Time
 	totalRequests int
@@ -65,6 +66,7 @@ type runLease struct {
 
 type tokenSnapshot struct {
 	Name          string        `json:"name"`
+	Enabled       bool          `json:"enabled"`
 	Runs          []runSnapshot `json:"runs"`
 	DrainingRuns  int           `json:"draining_runs"`
 	CooldownUntil time.Time     `json:"cooldown_until,omitempty"`
@@ -101,6 +103,7 @@ func NewRunManager(cfg Config, client *UpstreamClient, logger *log.Logger) *RunM
 			runs:          make(map[string]*managedRun),
 			logger:        logger,
 			maxConcurrent: initialPolicy.PerTokenConcurrency,
+			enabled:       true,
 			healthy:       true,
 		})
 	}
@@ -270,6 +273,7 @@ func (m *RunManager) AddToken(token string) (name string, added bool, err error)
 		runs:          make(map[string]*managedRun),
 		logger:        m.logger,
 		maxConcurrent: m.policy.PerTokenConcurrency,
+		enabled:       true,
 		healthy:       true,
 	}
 	m.pools = append(m.pools, pool)
@@ -302,6 +306,10 @@ func (m *RunManager) currentPools() []*tokenPool {
 
 func (p *tokenPool) acquire(ctx context.Context, agentID string) (*runLease, error) {
 	p.mu.Lock()
+	if !p.enabled {
+		p.mu.Unlock()
+		return nil, errors.New("token is disabled")
+	}
 	if now := time.Now(); now.Before(p.cooldownUntil) {
 		cooldownUntil := p.cooldownUntil
 		p.mu.Unlock()
@@ -338,10 +346,13 @@ func (p *tokenPool) acquire(ctx context.Context, agentID string) (*runLease, err
 
 func (p *tokenPool) maintain(ctx context.Context) error {
 	p.mu.Lock()
+	enabled := p.enabled
 	var toRotate []string
-	for agentID, run := range p.runs {
-		if time.Since(run.startedAt) >= p.cfg.RotationInterval {
-			toRotate = append(toRotate, agentID)
+	if enabled {
+		for agentID, run := range p.runs {
+			if time.Since(run.startedAt) >= p.cfg.RotationInterval {
+				toRotate = append(toRotate, agentID)
+			}
 		}
 	}
 	draining := append([]*managedRun(nil), p.draining...)
@@ -386,6 +397,10 @@ func (p *tokenPool) shutdown(ctx context.Context) error {
 
 func (p *tokenPool) rotateAgent(ctx context.Context, agentID string) error {
 	p.mu.Lock()
+	if !p.enabled {
+		p.mu.Unlock()
+		return errors.New("token is disabled")
+	}
 	if now := time.Now(); now.Before(p.cooldownUntil) {
 		cooldownUntil := p.cooldownUntil
 		p.mu.Unlock()
@@ -519,6 +534,18 @@ func (p *tokenPool) setMaxConcurrent(limit int) {
 	p.mu.Unlock()
 }
 
+func (p *tokenPool) setEnabled(enabled bool) {
+	p.mu.Lock()
+	p.enabled = enabled
+	if !enabled {
+		p.healthy = false
+		p.lastError = "disabled by admin"
+	} else if p.lastError == "disabled by admin" {
+		p.lastError = ""
+	}
+	p.mu.Unlock()
+}
+
 func (p *tokenPool) recordResult(success bool) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -535,6 +562,7 @@ func (p *tokenPool) snapshot() tokenSnapshot {
 
 	snapshot := tokenSnapshot{
 		Name:          p.name,
+		Enabled:       p.enabled,
 		DrainingRuns:  len(p.draining),
 		CooldownUntil: p.cooldownUntil,
 		LastError:     p.lastError,
@@ -582,6 +610,10 @@ func (p *tokenPool) healthCheck(ctx context.Context, policy runtimePolicySnapsho
 		return nil
 	}
 	p.mu.Lock()
+	if !p.enabled {
+		p.mu.Unlock()
+		return nil
+	}
 	if time.Since(p.lastHealthAt) < policy.HealthCheckInterval {
 		p.mu.Unlock()
 		return nil
@@ -607,6 +639,54 @@ func (p *tokenPool) healthCheck(ctx context.Context, policy runtimePolicySnapsho
 		p.lastError = finishErr.Error()
 		p.mu.Unlock()
 		return finishErr
+	}
+	return nil
+}
+
+func (m *RunManager) SetTokenEnabled(name string, enabled bool) (tokenSnapshot, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return tokenSnapshot{}, errors.New("token name is required")
+	}
+	m.mu.RLock()
+	var pool *tokenPool
+	for _, candidate := range m.pools {
+		if candidate.name == name {
+			pool = candidate
+			break
+		}
+	}
+	m.mu.RUnlock()
+	if pool == nil {
+		return tokenSnapshot{}, fmt.Errorf("token %q not found", name)
+	}
+	pool.setEnabled(enabled)
+	return pool.snapshot(), nil
+}
+
+func (m *RunManager) RemoveToken(name string) error {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return errors.New("token name is required")
+	}
+	m.mu.Lock()
+	index := -1
+	var pool *tokenPool
+	for i, candidate := range m.pools {
+		if candidate.name == name {
+			index = i
+			pool = candidate
+			break
+		}
+	}
+	if index == -1 {
+		m.mu.Unlock()
+		return fmt.Errorf("token %q not found", name)
+	}
+	m.pools = append(m.pools[:index], m.pools[index+1:]...)
+	m.mu.Unlock()
+	if pool != nil {
+		pool.setEnabled(false)
 	}
 	return nil
 }

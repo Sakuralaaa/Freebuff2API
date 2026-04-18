@@ -921,9 +921,10 @@
                     <input type="text" id="filterSearch" style="flex:1;min-width:220px;padding:8px 12px;border:1px solid #e2e8f0;border-radius:6px;font-size:14px;outline:none" data-i18n-placeholder="filter.search">
                     <select id="filterStatusSelect" style="padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;background:#fff;cursor:pointer;min-width:130px">
                         <option value="all" data-i18n="filter.all"></option>
+                        <option value="enabled" data-i18n="filter.enabled"></option>
+                        <option value="disabled" data-i18n="filter.disabled"></option>
                         <option value="healthy" data-i18n="filter.healthy"></option>
                         <option value="unhealthy" data-i18n="filter.unhealthy"></option>
-                        <option value="inactive" data-i18n="filter.inactive"></option>
                     </select>
                 </div>
 
@@ -1033,15 +1034,17 @@
                 'accounts.empty': '暂无账号',
                 'accounts.refresh': '刷新',
                 'accounts.copy': '复制',
+                'accounts.enable': '启用',
                 'accounts.disable': '禁用',
                 'accounts.delete': '删除',
-                'accounts.unsupported': '当前后端暂不支持此操作',
+                'accounts.confirmDelete': '确认删除该账号？',
                 'privacy.label': '隐私模式',
                 'filter.search': '搜索 token 名称',
                 'filter.all': '全部状态',
+                'filter.enabled': '已启用',
+                'filter.disabled': '已禁用',
                 'filter.healthy': '健康',
                 'filter.unhealthy': '不健康',
-                'filter.inactive': '空闲',
                 'session.title': '登录会话',
                 'session.fingerprint': '自定义 fingerprint_id（可选）',
                 'session.fingerprintPlaceholder': '留空则自动生成',
@@ -1062,7 +1065,9 @@
                 'msg.copied': '已复制到剪贴板。',
                 'msg.sessionCreated': '登录链接已生成，请在新窗口完成授权。',
                 'msg.waitAuth': '尚未授权，稍后重试。',
-                'msg.loginSuccess': '登录成功并已完成 token 注册。'
+                'msg.loginSuccess': '登录成功并已完成 token 注册。',
+                'msg.accountUpdated': '账号状态已更新。',
+                'msg.accountDeleted': '账号已删除。'
             },
             en: {
                 'login.subtitle': 'Enter admin password to continue',
@@ -1089,15 +1094,17 @@
                 'accounts.empty': 'No accounts',
                 'accounts.refresh': 'Refresh',
                 'accounts.copy': 'Copy',
+                'accounts.enable': 'Enable',
                 'accounts.disable': 'Disable',
                 'accounts.delete': 'Delete',
-                'accounts.unsupported': 'This action is not supported by current backend',
+                'accounts.confirmDelete': 'Delete this account?',
                 'privacy.label': 'Privacy',
                 'filter.search': 'Search by token name',
                 'filter.all': 'All status',
+                'filter.enabled': 'Enabled',
+                'filter.disabled': 'Disabled',
                 'filter.healthy': 'Healthy',
                 'filter.unhealthy': 'Unhealthy',
-                'filter.inactive': 'Idle',
                 'session.title': 'Login Session',
                 'session.fingerprint': 'Custom fingerprint_id (optional)',
                 'session.fingerprintPlaceholder': 'Leave empty for auto generation',
@@ -1118,7 +1125,9 @@
                 'msg.copied': 'Copied to clipboard.',
                 'msg.sessionCreated': 'Login link generated. Complete auth in a new window.',
                 'msg.waitAuth': 'Authorization not completed yet.',
-                'msg.loginSuccess': 'Login succeeded and token registered.'
+                'msg.loginSuccess': 'Login succeeded and token registered.',
+                'msg.accountUpdated': 'Account status updated.',
+                'msg.accountDeleted': 'Account deleted.'
             }
         };
 
@@ -1129,6 +1138,7 @@
             privacyMode: localStorage.getItem('privacyMode') !== 'false',
             session: null,
             stats: null,
+            accounts: [],
             exportData: null,
             filterKeyword: '',
             filterStatus: 'all'
@@ -1264,35 +1274,45 @@
             renderAccounts();
         }
 
-        function getFilteredTokens() {
-            const rows = Array.isArray(state.stats?.tokens?.items) ? state.stats.tokens.items : [];
+        async function fetchAccounts() {
+            const data = await api('/api/accounts');
+            state.accounts = Array.isArray(data?.items) ? data.items : [];
+            renderAccounts();
+        }
+
+        function getFilteredAccounts() {
+            const rows = Array.isArray(state.accounts) ? state.accounts : [];
             return rows.filter((row) => {
                 const name = String(row?.name || '').toLowerCase();
                 if (state.filterKeyword && !name.includes(state.filterKeyword.toLowerCase())) return false;
+                if (state.filterStatus === 'enabled' && !row?.enabled) return false;
+                if (state.filterStatus === 'disabled' && row?.enabled) return false;
                 if (state.filterStatus === 'healthy' && !row?.healthy) return false;
                 if (state.filterStatus === 'unhealthy' && row?.healthy) return false;
-                if (state.filterStatus === 'inactive' && (row?.inflight > 0 || (row?.runs || []).length > 0)) return false;
                 return true;
             });
         }
 
         function renderAccounts() {
             const list = el('accountsList');
-            const rows = getFilteredTokens();
+            const rows = getFilteredAccounts();
             if (!rows.length) {
                 list.innerHTML = `<div class="card" style="text-align:center;color:#64748b">${escapeHtml(t('accounts.empty'))}</div>`;
                 return;
             }
             list.innerHTML = rows.map((row, index) => {
-                const badgeClass = row?.healthy ? 'badge-success' : 'badge-warning';
-                const badgeText = row?.healthy ? t('filter.healthy') : t('filter.unhealthy');
+                const healthBadgeClass = row?.healthy ? 'badge-success' : 'badge-warning';
+                const healthBadgeText = row?.healthy ? t('filter.healthy') : t('filter.unhealthy');
+                const enabledBadgeClass = row?.enabled ? 'badge-info' : 'badge-error';
+                const enabledBadgeText = row?.enabled ? t('filter.enabled') : t('filter.disabled');
                 const runCount = Array.isArray(row?.runs) ? row.runs.length : 0;
                 return `<div class="account-card">
                     <div class="account-header">
                         <div class="account-info">
                             <div class="account-email">${escapeHtml(maskName(row?.name || '-'))}</div>
                             <div class="account-meta">
-                                <span class="badge ${badgeClass}">${escapeHtml(badgeText)}</span>
+                                <span class="badge ${enabledBadgeClass}">${escapeHtml(enabledBadgeText)}</span>
+                                <span class="badge ${healthBadgeClass}">${escapeHtml(healthBadgeText)}</span>
                                 <span class="badge badge-info">inflight ${Number(row?.inflight || 0)}</span>
                                 <span class="badge badge-info">runs ${runCount}</span>
                             </div>
@@ -1300,8 +1320,8 @@
                         <div class="account-actions">
                             <button class="btn btn-secondary btn-sm" onclick="refreshOne()">${escapeHtml(t('accounts.refresh'))}</button>
                             <button class="btn btn-secondary btn-sm" onclick="copyTokenByIndex(${index})">${escapeHtml(t('accounts.copy'))}</button>
-                            <button class="btn btn-secondary btn-sm" onclick="unsupportedAction()">${escapeHtml(t('accounts.disable'))}</button>
-                            <button class="btn btn-danger btn-sm" onclick="unsupportedAction()">${escapeHtml(t('accounts.delete'))}</button>
+                            <button class="btn btn-secondary btn-sm" onclick="toggleAccountEnabledByIndex(${index})">${escapeHtml(row?.enabled ? t('accounts.disable') : t('accounts.enable'))}</button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteAccountByIndex(${index})">${escapeHtml(t('accounts.delete'))}</button>
                         </div>
                     </div>
                     <div class="account-stats">
@@ -1316,7 +1336,7 @@
         }
 
         async function refreshOne() {
-            await fetchStats();
+            await Promise.all([fetchStats(), fetchAccounts()]);
             showMessage(t('msg.loaded'));
         }
 
@@ -1326,12 +1346,37 @@
         }
 
         async function copyTokenByIndex(index) {
-            const rows = getFilteredTokens();
+            const rows = getFilteredAccounts();
             await copyTokenName(rows[index]?.name || '');
         }
 
-        function unsupportedAction() {
-            showMessage(t('accounts.unsupported'), 'error');
+        async function toggleAccountEnabledByIndex(index) {
+            try {
+                const rows = getFilteredAccounts();
+                const account = rows[index];
+                if (!account?.name) return;
+                await api(`/api/accounts/${encodeURIComponent(account.name)}/${account.enabled ? 'disable' : 'enable'}`, {
+                    method: 'POST'
+                });
+                await Promise.all([fetchAccounts(), fetchStats()]);
+                showMessage(t('msg.accountUpdated'));
+            } catch (e) {
+                showMessage(e.message, 'error');
+            }
+        }
+
+        async function deleteAccountByIndex(index) {
+            try {
+                const rows = getFilteredAccounts();
+                const account = rows[index];
+                if (!account?.name) return;
+                if (!confirm(t('accounts.confirmDelete'))) return;
+                await api(`/api/accounts/${encodeURIComponent(account.name)}`, { method: 'DELETE' });
+                await Promise.all([fetchAccounts(), fetchStats(), fetchExportData()]);
+                showMessage(t('msg.accountDeleted'));
+            } catch (e) {
+                showMessage(e.message, 'error');
+            }
         }
 
         async function fetchPolicy() {
@@ -1429,7 +1474,7 @@
             }
             await fetchExportData();
             showMessage(t('msg.loginSuccess'));
-            await fetchStats();
+            await Promise.all([fetchStats(), fetchAccounts()]);
         }
 
         function copy(id) {
@@ -1444,7 +1489,7 @@
             el('modelsEndpoint').textContent = `${baseUrl}/v1/models`;
             el('statsEndpoint').textContent = `${baseUrl}/api/stats`;
             el('metricsEndpoint').textContent = `${baseUrl}/metrics`;
-            await Promise.all([fetchStats(), fetchPolicy(), fetchAliases(), fetchExportData()]);
+            await Promise.all([fetchStats(), fetchAccounts(), fetchPolicy(), fetchAliases(), fetchExportData()]);
         }
 
         function bindEvents() {
