@@ -68,9 +68,9 @@ func (s *Server) handleCreateLoginSession(w http.ResponseWriter, r *http.Request
 
 	resp := loginSessionResponse{
 		FingerprintID:   fingerprintID,
-		FingerprintHash: strings.TrimSpace(stringValue(payload, "fingerprintHash")),
-		ExpiresAt:       strings.TrimSpace(stringValue(payload, "expiresAt")),
-		LoginURL:        strings.TrimSpace(stringValue(payload, "loginUrl")),
+		FingerprintHash: firstNonEmptyString(payload, "fingerprintHash", "fingerprint_hash"),
+		ExpiresAt:       firstNonEmptyString(payload, "expiresAt", "expires_at"),
+		LoginURL:        firstNonEmptyString(payload, "loginUrl", "login_url"),
 	}
 	if resp.FingerprintHash == "" || resp.ExpiresAt == "" || resp.LoginURL == "" {
 		writeOpenAIError(w, http.StatusBadGateway, "freebuff login session response is incomplete", "server_error", "")
@@ -194,4 +194,30 @@ func requestFreebuffJSON(ctx context.Context, method, targetURL string, body any
 func stringValue(payload map[string]any, key string) string {
 	value, _ := payload[key].(string)
 	return value
+}
+
+func firstNonEmptyString(payload map[string]any, keys ...string) string {
+	if value := firstNonEmptyStringFromMap(payload, keys...); value != "" {
+		return value
+	}
+	for _, containerKey := range []string{"data", "result", "session", "payload"} {
+		nested, _ := payload[containerKey].(map[string]any)
+		if value := firstNonEmptyStringFromMap(nested, keys...); value != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+func firstNonEmptyStringFromMap(payload map[string]any, keys ...string) string {
+	if payload == nil {
+		return ""
+	}
+	for _, key := range keys {
+		value, _ := payload[key].(string)
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
 }
