@@ -1,711 +1,1523 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh">
+
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Freebuff2API Console</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Freebuff2API Console</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
 
-    body {
-      font-family: system-ui, -apple-system, sans-serif;
-      background: #f8fafc;
-      color: #1e293b;
-      min-height: 100vh;
-      -webkit-tap-highlight-color: transparent;
-    }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: #f8fafc;
+            color: #1e293b;
+            min-height: 100vh;
+            -webkit-tap-highlight-color: transparent;
+        }
 
-    .container {
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 16px;
-    }
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 16px;
+        }
 
-    .hero {
-      background: linear-gradient(135deg, #f0f4ff 0%, #faf5ff 100%);
-      border: 1px solid #e2e8f0;
-      border-radius: 12px;
-      padding: 16px;
-      margin-bottom: 16px;
-    }
+        .login-wrapper {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #f0f4ff 0%, #faf5ff 100%);
+            padding: 16px;
+        }
 
-    .hero h1 {
-      font-size: 22px;
-      color: #7c3aed;
-      margin-bottom: 6px;
-    }
+        .login-box {
+            background: #fff;
+            padding: 32px 24px;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 380px;
+        }
 
-    .hero p {
-      color: #64748b;
-      font-size: 14px;
-    }
+        .login-box h1 {
+            text-align: center;
+            color: #7c3aed;
+            margin-bottom: 8px;
+            font-size: 22px;
+            justify-content: center;
+        }
 
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 12px;
-    }
+        .login-box p {
+            text-align: center;
+            color: #64748b;
+            margin-bottom: 24px;
+            font-size: 14px;
+        }
 
-    .card {
-      background: #fff;
-      border-radius: 12px;
-      padding: 16px;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-      border: 1px solid #e2e8f0;
-    }
+        .form-group {
+            margin-bottom: 16px;
+        }
 
-    .wide { grid-column: 1 / -1; }
+        label {
+            display: block;
+            margin-bottom: 6px;
+            color: #374151;
+            font-size: 14px;
+            font-weight: 500;
+        }
 
-    .card-head {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 12px;
-      flex-wrap: wrap;
-    }
+        input[type="text"],
+        input[type="password"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 16px;
+            background: #fff;
+            color: #1e293b;
+            -webkit-appearance: none;
+        }
 
-    .card h2 {
-      font-size: 16px;
-      font-weight: 600;
-      color: #334155;
-    }
+        input:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #7c3aed;
+            box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+        }
 
-    .card-actions {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+            font-family: monospace;
+            font-size: 14px;
+        }
 
-    .row { margin-bottom: 10px; }
-    .row:last-child { margin-bottom: 0; }
+        .btn {
+            padding: 12px 18px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            touch-action: manipulation;
+        }
 
-    label {
-      display: block;
-      margin-bottom: 6px;
-      color: #374151;
-      font-size: 14px;
-      font-weight: 500;
-    }
+        .btn-primary {
+            background: #7c3aed;
+            color: white;
+        }
 
-    input[type="text"],
-    input[type="password"],
-    textarea {
-      width: 100%;
-      padding: 10px 12px;
-      border: 1px solid #e2e8f0;
-      border-radius: 8px;
-      font-size: 14px;
-      background: #fff;
-      color: #1e293b;
-    }
+        .btn-primary:hover,
+        .btn-primary:active {
+            background: #6d28d9;
+        }
 
-    textarea {
-      resize: vertical;
-      min-height: 92px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    }
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
 
-    input:focus,
-    textarea:focus {
-      outline: none;
-      border-color: #7c3aed;
-      box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
-    }
+        .btn-secondary {
+            background: #f1f5f9;
+            color: #374151;
+        }
 
-    button {
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 14px;
-      font-weight: 500;
-      padding: 10px 12px;
-      color: #fff;
-      background: #7c3aed;
-      transition: 0.2s ease;
-      width: 100%;
-      margin-top: 8px;
-    }
+        .btn-success {
+            background: #10B981;
+            color: white;
+        }
 
-    button:hover:not(:disabled) { background: #6d28d9; }
-    button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-sm {
+            padding: 8px 12px;
+            font-size: 13px;
+        }
 
-    .ghost {
-      background: #f1f5f9;
-      color: #374151;
-    }
+        .card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
 
-    .btn-inline {
-      width: auto;
-      margin-top: 0;
-      padding: 8px 12px;
-      font-size: 13px;
-    }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #e2e8f0;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
 
-    .meta {
-      margin-top: 8px;
-      font-size: 12px;
-      color: #64748b;
-      word-break: break-all;
-    }
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+        }
 
-    a {
-      color: #7c3aed;
-      text-decoration: none;
-    }
+        .card-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
 
-    a:hover { text-decoration: underline; }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
 
-    code {
-      background: #f1f5f9;
-      border: 1px solid #e2e8f0;
-      border-radius: 6px;
-      padding: 2px 6px;
-      color: #5b21b6;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    }
+        .stat-card {
+            background: #fff;
+            border-radius: 10px;
+            padding: 12px 8px;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
 
-    #status {
-      border: 1px solid #e2e8f0;
-      border-radius: 8px;
-      min-height: 40px;
-      padding: 10px 12px;
-      background: #f8fafc;
-      color: #64748b;
-      display: flex;
-      align-items: center;
-      font-size: 14px;
-    }
+        .stat-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #7c3aed;
+        }
 
-    #status.ok {
-      color: #166534;
-      border-color: #bbf7d0;
-      background: #f0fdf4;
-    }
+        .stat-label {
+            font-size: 11px;
+            color: #64748b;
+            margin-top: 2px;
+        }
 
-    #status.err {
-      color: #b91c1c;
-      border-color: #fecaca;
-      background: #fef2f2;
-    }
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+            white-space: nowrap;
+        }
 
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-      gap: 10px;
-      margin-bottom: 10px;
-    }
+        .badge-success {
+            background: #dcfce7;
+            color: #16a34a;
+        }
 
-    .stat-card {
-      background: #fff;
-      border-radius: 10px;
-      padding: 10px;
-      text-align: center;
-      border: 1px solid #e2e8f0;
-    }
+        .badge-warning {
+            background: #fef3c7;
+            color: #d97706;
+        }
 
-    .stat-value {
-      font-size: 20px;
-      font-weight: 700;
-      color: #7c3aed;
-      line-height: 1.2;
-    }
+        .badge-error {
+            background: #fee2e2;
+            color: #dc2626;
+        }
 
-    .stat-label {
-      margin-top: 3px;
-      font-size: 12px;
-      color: #64748b;
-    }
+        .badge-info {
+            background: #ede9fe;
+            color: #7c3aed;
+        }
 
-    .table-wrap {
-      margin-top: 10px;
-      border: 1px solid #e2e8f0;
-      border-radius: 10px;
-      overflow-x: auto;
-    }
+        .badge-pro {
+            background: #3b82f6;
+            color: white;
+        }
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      min-width: 520px;
-      font-size: 13px;
-    }
+        .badge-proplus {
+            background: #8b5cf6;
+            color: white;
+        }
 
-    th, td {
-      text-align: left;
-      padding: 9px 10px;
-      white-space: nowrap;
-      border-bottom: 1px solid #f1f5f9;
-    }
+        .badge-power {
+            background: #f59e0b;
+            color: white;
+        }
 
-    th {
-      background: #f8fafc;
-      color: #334155;
-      font-weight: 600;
-    }
+        .badge-free {
+            background: #6b7280;
+            color: white;
+        }
 
-    td { color: #64748b; }
+        .badge-trial {
+            background: #10b981;
+            color: white;
+        }
 
-    @media (max-width: 640px) {
-      .container { padding: 12px; }
-      .hero, .card { padding: 12px; }
-    }
-  </style>
+        .badge-banned {
+            background: #dc2626;
+            color: white;
+        }
+
+        .badge-suspended {
+            background: #f59e0b;
+            color: white;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            padding: 16px;
+            overflow-y: auto;
+        }
+
+        .modal.active {
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            padding-top: 5vh;
+        }
+
+        .modal-content {
+            background: #fff;
+            border-radius: 12px;
+            padding: 20px;
+            width: 100%;
+            max-width: 600px;
+            margin-bottom: 20px;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 28px;
+            cursor: pointer;
+            color: #64748b;
+            padding: 0 8px;
+        }
+
+        .modal-footer {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+            flex-shrink: 0;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+            position: absolute;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #cbd5e1;
+            border-radius: 24px;
+            transition: 0.3s;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background: white;
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+
+        input:checked+.slider {
+            background: #7c3aed;
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(20px);
+        }
+
+        .tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 16px;
+            background: #f1f5f9;
+            padding: 4px;
+            border-radius: 10px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .tab {
+            padding: 10px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            color: #64748b;
+            font-weight: 500;
+            font-size: 14px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .tab:hover {
+            color: #374151;
+        }
+
+        .tab.active {
+            background: #fff;
+            color: #7c3aed;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .message {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+
+        .message-error {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .endpoint {
+            background: #f8fafc;
+            padding: 12px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 12px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            word-break: break-all;
+        }
+
+        .endpoint span {
+            flex: 1;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+            gap: 12px;
+        }
+
+        .header h1 {
+            font-size: 18px;
+            color: #7c3aed;
+        }
+
+        .account-card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 14px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            border-left: 4px solid #7c3aed;
+        }
+
+        .account-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+            gap: 10px;
+        }
+
+        .account-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .account-email {
+            font-weight: 600;
+            font-size: 14px;
+            color: #1e293b;
+            word-break: break-all;
+        }
+
+        .account-meta {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-top: 6px;
+        }
+
+        .account-usage {
+            margin: 10px 0;
+        }
+
+        .usage-bar {
+            height: 6px;
+            background: #e2e8f0;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .usage-fill {
+            height: 100%;
+            background: #7c3aed;
+            border-radius: 3px;
+            transition: width 0.3s;
+        }
+
+        .usage-fill.high {
+            background: #f59e0b;
+        }
+
+        .usage-fill.critical {
+            background: #ef4444;
+        }
+
+        .usage-text {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: #64748b;
+            margin-top: 4px;
+        }
+
+        .usage-label {
+            font-size: 12px;
+            color: #64748b;
+            margin-bottom: 4px;
+            font-weight: 500;
+        }
+
+        .account-usage+.account-usage {
+            margin-top: 8px;
+        }
+
+        .badge-trial {
+            background: #10b981;
+            color: white;
+        }
+
+        .account-stats {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 6px;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .account-stat {
+            text-align: center;
+        }
+
+        .account-stat-value {
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .account-stat-label {
+            font-size: 10px;
+            color: #64748b;
+        }
+
+        .account-actions {
+            display: flex;
+            gap: 6px;
+            flex-shrink: 0;
+            flex-wrap: wrap;
+        }
+
+        .detail-section {
+            margin-bottom: 20px;
+        }
+
+        .detail-section h4 {
+            font-size: 13px;
+            color: #64748b;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .detail-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+        }
+
+        .detail-item {
+            background: #f8fafc;
+            padding: 10px 12px;
+            border-radius: 8px;
+        }
+
+        .detail-label {
+            font-size: 11px;
+            color: #64748b;
+            margin-bottom: 2px;
+        }
+
+        .detail-value {
+            font-size: 13px;
+            font-weight: 500;
+            word-break: break-all;
+        }
+
+        .model-list {
+            display: grid;
+            gap: 8px;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        .model-item {
+            background: #f8fafc;
+            padding: 14px 16px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            transition: background 0.2s ease;
+        }
+
+        .model-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .model-item:hover {
+            background: #f1f5f9;
+        }
+
+        .model-name {
+            font-weight: 600;
+            font-size: 14px;
+            color: #0f172a;
+            line-height: 1.4;
+        }
+
+        .model-credit {
+            font-size: 13px;
+            margin-top: 4px;
+        }
+
+        .credit-ratio {
+            color: #7c3aed;
+            font-weight: 600;
+        }
+
+        .model-info {
+            font-size: 12px;
+            color: #64748b;
+            margin-top: 6px;
+            line-height: 1.5;
+        }
+
+        .btn-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            padding: 0;
+        }
+
+        .btn-icon svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .logo svg {
+            width: 24px;
+            height: 24px;
+            color: #7c3aed;
+        }
+
+        .machine-id-row {
+            display: flex;
+            gap: 8px;
+            align-items: stretch;
+            flex-wrap: wrap;
+        }
+
+        .machine-id-row input {
+            flex: 1;
+            min-width: 200px;
+            font-family: monospace;
+            font-size: 11px;
+        }
+
+        .machine-id-row .btn {
+            flex-shrink: 0;
+        }
+
+        .lang-switch {
+            display: flex;
+            gap: 4px;
+            background: #f1f5f9;
+            padding: 2px;
+            border-radius: 6px;
+        }
+
+        .lang-btn {
+            padding: 4px 8px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 12px;
+            border-radius: 4px;
+            color: #64748b;
+        }
+
+        .lang-btn.active {
+            background: #fff;
+            color: #7c3aed;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        @media (max-width: 640px) {
+            .container {
+                padding: 12px;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 8px;
+            }
+
+            .stat-card {
+                padding: 10px 6px;
+            }
+
+            .stat-value {
+                font-size: 18px;
+            }
+
+            .stat-label {
+                font-size: 10px;
+            }
+
+            .card {
+                padding: 14px;
+            }
+
+            .card-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .card-actions {
+                width: 100%;
+            }
+
+            .card-actions .btn {
+                flex: 1;
+                text-align: center;
+            }
+
+            .account-header {
+                flex-direction: column;
+            }
+
+            .account-actions {
+                width: 100%;
+                justify-content: flex-start;
+            }
+
+            .account-actions .btn {
+                padding: 8px 10px;
+                font-size: 12px;
+            }
+
+            .account-stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .detail-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .tabs {
+                gap: 2px;
+            }
+
+            .tab {
+                padding: 10px 12px;
+                font-size: 13px;
+            }
+
+            .modal-content {
+                padding: 16px;
+            }
+
+            .endpoint {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .endpoint .btn {
+                width: 100%;
+            }
+
+            .machine-id-row {
+                flex-direction: column;
+            }
+
+            .machine-id-row input {
+                min-width: 100%;
+            }
+
+            .machine-id-row .btn {
+                width: 100%;
+            }
+        }
+
+        @media (min-width: 641px) {
+            .detail-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        /* 隐私模式开关样式 */
+        .privacy-toggle {
+            white-space: nowrap;
+        }
+
+        @media (max-width: 640px) {
+            .privacy-toggle {
+                order: -1;
+                width: 100%;
+                justify-content: space-between;
+                padding: 8px 0;
+                border-bottom: 1px solid #e2e8f0;
+                margin-bottom: 8px;
+            }
+
+            .privacy-toggle span {
+                font-size: 14px;
+            }
+        }
+    </style>
 </head>
 <body>
-  <main class="container">
-    <section class="hero">
-      <h1>Freebuff2API 控制台</h1>
-      <p>Kiro-Go 风格重构版：登录、授权、统计、策略与模型别名管理。</p>
-    </section>
-
-    <section class="grid">
-      <div class="card" id="adminRow" style="display:none;">
-        <h2>管理认证</h2>
-        <div class="row">
-          <label for="adminPassword">管理密码</label>
-          <input id="adminPassword" type="password" placeholder="请输入管理密码" />
+    <div id="loginPage" class="login-wrapper hidden">
+        <div class="login-box">
+            <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
+                <div class="lang-switch">
+                    <button class="lang-btn" data-lang="zh" onclick="setLang('zh')">中文</button>
+                    <button class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button>
+                </div>
+            </div>
+            <h1 class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                </svg>Freebuff2API</h1>
+            <p data-i18n="login.subtitle"></p>
+            <div class="form-group">
+                <label data-i18n="login.password"></label>
+                <input type="password" id="pwdField" data-i18n-placeholder="login.passwordPlaceholder" autocomplete="off">
+            </div>
+            <button type="button" class="btn btn-primary" style="width:100%" onclick="login()" data-i18n="login.submit"></button>
+            <div id="loginError" class="message message-error hidden" style="margin-top:12px"></div>
         </div>
-        <button id="adminLoginBtn">登录管理页面</button>
-        <button id="adminLogoutBtn" class="ghost" style="display:none;">退出登录</button>
-      </div>
+    </div>
 
-      <div class="card">
-        <h2>登录会话</h2>
-        <div class="row">
-          <label for="fingerprintInput">自定义 fingerprint_id（可选）</label>
-          <input id="fingerprintInput" type="text" placeholder="留空则自动生成" />
-        </div>
-        <button id="createBtn">1) 生成登录链接</button>
-        <div class="meta">login_url：<a id="loginLink" target="_blank" rel="noopener"></a></div>
-        <div class="meta">fingerprint_id：<code id="fpId"></code></div>
-        <div class="meta">fingerprint_hash：<code id="fpHash"></code></div>
-        <div class="meta">expires_at：<code id="expiresAt"></code></div>
-      </div>
-
-      <div class="card">
-        <h2>授权状态</h2>
-        <button id="pollBtn" disabled>2) 轮询登录状态</button>
-        <div class="row" style="margin-top:10px;"><div id="status"></div></div>
-      </div>
-
-      <div class="card wide">
-        <div class="card-head">
-          <h2>统计面板</h2>
-          <div class="card-actions">
-            <button id="statsRefreshBtn" class="ghost btn-inline">刷新统计</button>
-            <button id="exportJsonBtn" class="ghost btn-inline">导出 JSON</button>
-            <button id="copyTokensBtn" class="ghost btn-inline">复制 AUTH_TOKENS</button>
-          </div>
+    <div id="mainPage" class="container hidden">
+        <div class="header">
+            <h1 class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                </svg>Freebuff2API</h1>
+            <div class="header-right">
+                <div class="lang-switch">
+                    <button class="lang-btn" data-lang="zh" onclick="setLang('zh')">中文</button>
+                    <button class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button>
+                </div>
+                <span class="badge badge-success" id="statusBadge" data-i18n="status.running"></span>
+                <span class="badge badge-info" id="versionBadge">Freebuff2API</span>
+                <button id="logoutBtn" class="btn btn-sm btn-danger" onclick="logout()" data-i18n="common.logout" style="padding:4px 12px;font-size:12px"></button>
+            </div>
         </div>
 
         <div class="stats-grid">
-          <div class="stat-card"><div class="stat-value" id="statTotalRequests">0</div><div class="stat-label">总调用</div></div>
-          <div class="stat-card"><div class="stat-value" id="statSuccess">0</div><div class="stat-label">成功调用</div></div>
-          <div class="stat-card"><div class="stat-value" id="statFailed">0</div><div class="stat-label">失败调用</div></div>
-          <div class="stat-card"><div class="stat-value" id="statTokenCount">0</div><div class="stat-label">Token 数量</div></div>
-          <div class="stat-card"><div class="stat-value" id="statRetries">0</div><div class="stat-label">重试次数</div></div>
-          <div class="stat-card"><div class="stat-value" id="stat429">0</div><div class="stat-label">429 次数</div></div>
-          <div class="stat-card"><div class="stat-value" id="statInflight">0</div><div class="stat-label">当前并发</div></div>
-          <div class="stat-card"><div class="stat-value" id="statHealthyTokens">0</div><div class="stat-label">健康 Token</div></div>
+            <div class="stat-card"><div class="stat-value" id="statAccounts">0</div><div class="stat-label" data-i18n="stats.accounts"></div></div>
+            <div class="stat-card"><div class="stat-value" id="statRequests">0</div><div class="stat-label" data-i18n="stats.requests"></div></div>
+            <div class="stat-card"><div class="stat-value" id="statSuccess">0</div><div class="stat-label" data-i18n="stats.success"></div></div>
+            <div class="stat-card"><div class="stat-value" id="statFailed">0</div><div class="stat-label" data-i18n="stats.failed"></div></div>
+            <div class="stat-card"><div class="stat-value" id="statRetries">0</div><div class="stat-label" data-i18n="stats.retries"></div></div>
+            <div class="stat-card"><div class="stat-value" id="statInflight">0</div><div class="stat-label" data-i18n="stats.inflight"></div></div>
         </div>
 
-        <div class="meta">最后请求时间：<code id="lastRequestAt">-</code></div>
-
-        <div class="meta" style="margin-top:12px;">Token 调用统计</div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Token</th>
-                <th>请求</th>
-                <th>成功</th>
-                <th>失败</th>
-                <th>活跃 Run</th>
-                <th>最近使用</th>
-              </tr>
-            </thead>
-            <tbody id="tokenStatsBody"><tr><td colspan="6">暂无数据</td></tr></tbody>
-          </table>
+        <div class="tabs">
+            <div class="tab active" data-tab="accounts" data-i18n="tabs.accounts"></div>
+            <div class="tab" data-tab="settings" data-i18n="tabs.settings"></div>
+            <div class="tab" data-tab="api" data-i18n="tabs.api"></div>
         </div>
 
-        <div class="meta" style="margin-top:12px;">模型调用统计</div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>模型</th>
-                <th>请求</th>
-                <th>成功</th>
-                <th>失败</th>
-              </tr>
-            </thead>
-            <tbody id="modelStatsBody"><tr><td colspan="4">暂无数据</td></tr></tbody>
-          </table>
+        <div id="tabAccounts" class="tab-content">
+            <div id="globalMessage" class="message hidden"></div>
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title" data-i18n="accounts.title"></span>
+                    <div class="card-actions">
+                        <div class="privacy-toggle" style="display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none">
+                            <span style="font-size:13px;color:#374151;font-weight:500" data-i18n="privacy.label"></span>
+                            <label class="switch" style="margin:0">
+                                <input type="checkbox" id="privacyModeToggle" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <button class="btn btn-secondary btn-sm" id="exportBtn" data-i18n="accounts.export"></button>
+                        <button class="btn btn-primary btn-sm" id="toggleAddPanelBtn" data-i18n="accounts.add"></button>
+                    </div>
+                </div>
+
+                <div id="accountsToolbar" style="display:flex;gap:8px;align-items:center;padding:0 4px 12px;flex-wrap:wrap">
+                    <input type="text" id="filterSearch" style="flex:1;min-width:220px;padding:8px 12px;border:1px solid #e2e8f0;border-radius:6px;font-size:14px;outline:none" data-i18n-placeholder="filter.search">
+                    <select id="filterStatusSelect" style="padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;background:#fff;cursor:pointer;min-width:130px">
+                        <option value="all" data-i18n="filter.all"></option>
+                        <option value="healthy" data-i18n="filter.healthy"></option>
+                        <option value="unhealthy" data-i18n="filter.unhealthy"></option>
+                        <option value="inactive" data-i18n="filter.inactive"></option>
+                    </select>
+                </div>
+
+                <div id="addAccountPanel" class="card" style="display:none;margin:0 0 12px;background:#f8fafc;box-shadow:none;border:1px solid #e2e8f0">
+                    <div class="card-header" style="margin-bottom:12px">
+                        <span class="card-title" data-i18n="session.title"></span>
+                    </div>
+                    <div class="form-group">
+                        <label data-i18n="session.fingerprint"></label>
+                        <input type="text" id="fingerprintInput" data-i18n-placeholder="session.fingerprintPlaceholder">
+                    </div>
+                    <div class="card-actions" style="margin-bottom:10px">
+                        <button class="btn btn-primary btn-sm" id="createBtn" data-i18n="session.create"></button>
+                        <button class="btn btn-secondary btn-sm" id="pollBtn" data-i18n="session.poll" disabled></button>
+                    </div>
+                    <div class="detail-grid">
+                        <div class="detail-item"><div class="detail-label">login_url</div><div class="detail-value"><a id="loginLink" target="_blank" rel="noopener"></a></div></div>
+                        <div class="detail-item"><div class="detail-label">fingerprint_id</div><div class="detail-value" id="fpId">-</div></div>
+                        <div class="detail-item"><div class="detail-label">fingerprint_hash</div><div class="detail-value" id="fpHash">-</div></div>
+                        <div class="detail-item"><div class="detail-label">expires_at</div><div class="detail-value" id="expiresAt">-</div></div>
+                    </div>
+                </div>
+
+                <div id="accountsList"></div>
+            </div>
         </div>
-      </div>
 
-      <div class="card wide">
-        <div class="card-head">
-          <h2>策略中心</h2>
-          <div class="card-actions">
-            <button id="policyRefreshBtn" class="ghost btn-inline">加载策略</button>
-            <button id="policySaveBtn" class="btn-inline">保存策略</button>
-          </div>
+        <div id="tabSettings" class="tab-content hidden">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title" data-i18n="settings.policy"></span>
+                    <div class="card-actions">
+                        <button class="btn btn-secondary btn-sm" id="policyRefreshBtn" data-i18n="settings.load"></button>
+                        <button class="btn btn-primary btn-sm" id="policySaveBtn" data-i18n="settings.save"></button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="policyJson">Policy JSON</label>
+                    <textarea id="policyJson" placeholder='{"max_retries":2,...}'></textarea>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title" data-i18n="settings.aliases"></span>
+                    <div class="card-actions">
+                        <button class="btn btn-secondary btn-sm" id="aliasesRefreshBtn" data-i18n="settings.load"></button>
+                        <button class="btn btn-primary btn-sm" id="aliasesSaveBtn" data-i18n="settings.save"></button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="aliasesJson">Aliases JSON</label>
+                    <textarea id="aliasesJson" placeholder='{"gpt-4o":"google/gemini-3.1-pro-preview"}'></textarea>
+                </div>
+            </div>
         </div>
-        <div class="row">
-          <label for="policyJson">策略 JSON</label>
-          <textarea id="policyJson" placeholder='{"max_retries":2,...}'></textarea>
+
+        <div id="tabApi" class="tab-content hidden">
+            <div class="card">
+                <div class="card-header"><span class="card-title" data-i18n="api.endpoints"></span></div>
+                <p style="margin-bottom:10px;font-weight:500;font-size:14px">OpenAI API</p>
+                <div class="endpoint"><span id="openaiEndpoint"></span><button class="btn btn-sm btn-secondary" onclick="copy('openaiEndpoint')" data-i18n="common.copy"></button></div>
+                <p style="margin:14px 0 10px;font-weight:500;font-size:14px" data-i18n="api.models"></p>
+                <div class="endpoint"><span id="modelsEndpoint"></span><button class="btn btn-sm btn-secondary" onclick="copy('modelsEndpoint')" data-i18n="common.copy"></button></div>
+                <p style="margin:14px 0 10px;font-weight:500;font-size:14px" data-i18n="api.stats"></p>
+                <div class="endpoint"><span id="statsEndpoint"></span><button class="btn btn-sm btn-secondary" onclick="copy('statsEndpoint')" data-i18n="common.copy"></button></div>
+                <p style="margin:14px 0 10px;font-weight:500;font-size:14px" data-i18n="api.metrics"></p>
+                <div class="endpoint"><span id="metricsEndpoint"></span><button class="btn btn-sm btn-secondary" onclick="copy('metricsEndpoint')" data-i18n="common.copy"></button></div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">AUTH_TOKENS</span>
+                    <div class="card-actions">
+                        <button class="btn btn-secondary btn-sm" id="copyTokensBtn" data-i18n="api.copyTokens"></button>
+                    </div>
+                </div>
+                <textarea id="tokens" readonly></textarea>
+            </div>
         </div>
-      </div>
+    </div>
 
-      <div class="card wide">
-        <div class="card-head">
-          <h2>模型别名</h2>
-          <div class="card-actions">
-            <button id="aliasesRefreshBtn" class="ghost btn-inline">加载别名</button>
-            <button id="aliasesSaveBtn" class="btn-inline">保存别名</button>
-          </div>
-        </div>
-        <div class="row">
-          <label for="aliasesJson">Aliases JSON</label>
-          <textarea id="aliasesJson" placeholder='{"gpt-4o":"google/gemini-3.1-pro-preview"}'></textarea>
-        </div>
-      </div>
+    <script>
+        const i18n = {
+            zh: {
+                'login.subtitle': '请输入管理密码登录',
+                'login.password': '管理密码',
+                'login.passwordPlaceholder': '输入密码',
+                'login.submit': '登录',
+                'login.error': '密码错误',
+                'login.connectError': '连接失败',
+                'status.running': '运行中',
+                'common.logout': '退出',
+                'common.copy': '复制',
+                'tabs.accounts': '账号',
+                'tabs.settings': '设置',
+                'tabs.api': 'API',
+                'stats.accounts': '账号',
+                'stats.requests': '请求',
+                'stats.success': '成功',
+                'stats.failed': '失败',
+                'stats.retries': '重试',
+                'stats.inflight': '并发',
+                'accounts.title': '账号列表',
+                'accounts.export': '导出',
+                'accounts.add': '添加账号',
+                'accounts.empty': '暂无账号',
+                'accounts.refresh': '刷新',
+                'accounts.copy': '复制',
+                'accounts.disable': '禁用',
+                'accounts.delete': '删除',
+                'accounts.unsupported': '当前后端暂不支持此操作',
+                'privacy.label': '隐私模式',
+                'filter.search': '搜索 token 名称',
+                'filter.all': '全部状态',
+                'filter.healthy': '健康',
+                'filter.unhealthy': '不健康',
+                'filter.inactive': '空闲',
+                'session.title': '登录会话',
+                'session.fingerprint': '自定义 fingerprint_id（可选）',
+                'session.fingerprintPlaceholder': '留空则自动生成',
+                'session.create': '1) 生成登录链接',
+                'session.poll': '2) 轮询登录状态',
+                'settings.policy': '策略中心',
+                'settings.aliases': '模型别名',
+                'settings.load': '加载',
+                'settings.save': '保存',
+                'api.endpoints': 'API 端点',
+                'api.models': '模型列表',
+                'api.stats': '统计接口',
+                'api.metrics': 'Metrics',
+                'api.copyTokens': '复制 AUTH_TOKENS',
+                'msg.adminRequired': '请先登录管理页面。',
+                'msg.loaded': '数据已刷新。',
+                'msg.exported': 'JSON 导出成功。',
+                'msg.copied': '已复制到剪贴板。',
+                'msg.sessionCreated': '登录链接已生成，请在新窗口完成授权。',
+                'msg.waitAuth': '尚未授权，稍后重试。',
+                'msg.loginSuccess': '登录成功并已完成 token 注册。'
+            },
+            en: {
+                'login.subtitle': 'Enter admin password to continue',
+                'login.password': 'Admin Password',
+                'login.passwordPlaceholder': 'Enter password',
+                'login.submit': 'Login',
+                'login.error': 'Invalid password',
+                'login.connectError': 'Connection failed',
+                'status.running': 'Running',
+                'common.logout': 'Logout',
+                'common.copy': 'Copy',
+                'tabs.accounts': 'Accounts',
+                'tabs.settings': 'Settings',
+                'tabs.api': 'API',
+                'stats.accounts': 'Accounts',
+                'stats.requests': 'Requests',
+                'stats.success': 'Success',
+                'stats.failed': 'Failed',
+                'stats.retries': 'Retries',
+                'stats.inflight': 'Inflight',
+                'accounts.title': 'Account List',
+                'accounts.export': 'Export',
+                'accounts.add': 'Add Account',
+                'accounts.empty': 'No accounts',
+                'accounts.refresh': 'Refresh',
+                'accounts.copy': 'Copy',
+                'accounts.disable': 'Disable',
+                'accounts.delete': 'Delete',
+                'accounts.unsupported': 'This action is not supported by current backend',
+                'privacy.label': 'Privacy',
+                'filter.search': 'Search by token name',
+                'filter.all': 'All status',
+                'filter.healthy': 'Healthy',
+                'filter.unhealthy': 'Unhealthy',
+                'filter.inactive': 'Idle',
+                'session.title': 'Login Session',
+                'session.fingerprint': 'Custom fingerprint_id (optional)',
+                'session.fingerprintPlaceholder': 'Leave empty for auto generation',
+                'session.create': '1) Create login link',
+                'session.poll': '2) Poll login status',
+                'settings.policy': 'Runtime Policy',
+                'settings.aliases': 'Model Aliases',
+                'settings.load': 'Load',
+                'settings.save': 'Save',
+                'api.endpoints': 'API Endpoints',
+                'api.models': 'Model List',
+                'api.stats': 'Stats endpoint',
+                'api.metrics': 'Metrics',
+                'api.copyTokens': 'Copy AUTH_TOKENS',
+                'msg.adminRequired': 'Please login to admin first.',
+                'msg.loaded': 'Data refreshed.',
+                'msg.exported': 'JSON exported.',
+                'msg.copied': 'Copied to clipboard.',
+                'msg.sessionCreated': 'Login link generated. Complete auth in a new window.',
+                'msg.waitAuth': 'Authorization not completed yet.',
+                'msg.loginSuccess': 'Login succeeded and token registered.'
+            }
+        };
 
-      <div class="card wide">
-        <h2>AUTH_TOKENS（兼容旧部署）</h2>
-        <textarea id="tokens" readonly></textarea>
-      </div>
-    </section>
-  </main>
+        const state = {
+            currentLang: localStorage.getItem('freebuff_lang') || 'zh',
+            adminEnabled: false,
+            authenticated: false,
+            privacyMode: localStorage.getItem('privacyMode') !== 'false',
+            session: null,
+            stats: null,
+            exportData: null,
+            filterKeyword: '',
+            filterStatus: 'all'
+        };
 
-  <script>
-    const state = {};
-    const el = (id) => document.getElementById(id);
-    const statusEl = el("status");
+        const el = (id) => document.getElementById(id);
 
-    function setStatus(text, cls = "") {
-      statusEl.className = cls;
-      statusEl.textContent = text;
-    }
-
-    function setAuthUI(status) {
-      const enabled = !!status?.enabled;
-      const authenticated = !!status?.authenticated;
-      el("adminRow").style.display = enabled ? "block" : "none";
-      el("adminLoginBtn").style.display = enabled && !authenticated ? "block" : "none";
-      el("adminPassword").style.display = enabled && !authenticated ? "block" : "none";
-      el("adminLogoutBtn").style.display = enabled && authenticated ? "block" : "none";
-      const disabled = enabled && !authenticated;
-      el("createBtn").disabled = disabled;
-      el("pollBtn").disabled = disabled || !state.fingerprint_id;
-      el("statsRefreshBtn").disabled = disabled;
-      el("exportJsonBtn").disabled = disabled;
-      el("copyTokensBtn").disabled = disabled;
-      el("policyRefreshBtn").disabled = disabled;
-      el("policySaveBtn").disabled = disabled;
-      el("aliasesRefreshBtn").disabled = disabled;
-      el("aliasesSaveBtn").disabled = disabled;
-      if (disabled) setStatus("请先输入管理密码登录。");
-    }
-
-    function formatTime(value) {
-      if (!value) return "-";
-      const time = new Date(value);
-      if (Number.isNaN(time.getTime())) return "-";
-      return time.toLocaleString();
-    }
-
-    function numberValue(value) {
-      const n = Number(value);
-      return Number.isFinite(n) ? n : 0;
-    }
-
-    function escapeHtml(v) {
-      return String(v ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[ch] ?? ch));
-    }
-
-    function renderTokenStats(items) {
-      const body = el("tokenStatsBody");
-      const rows = Array.isArray(items) ? items : [];
-      if (!rows.length) {
-        body.innerHTML = `<tr><td colspan="6">暂无数据</td></tr>`;
-        return;
-      }
-      body.innerHTML = rows.map((token) => {
-        const runCount = Array.isArray(token?.runs) ? token.runs.length : 0;
-        return `<tr>
-          <td>${token?.name ? escapeHtml(token.name) : "-"}</td>
-          <td>${numberValue(token?.total_requests)}</td>
-          <td>${numberValue(token?.success_count)}</td>
-          <td>${numberValue(token?.failure_count)}</td>
-          <td>${runCount}</td>
-          <td>${formatTime(token?.last_used_at)}</td>
-        </tr>`;
-      }).join("");
-    }
-
-    function renderModelStats(items) {
-      const body = el("modelStatsBody");
-      const rows = Array.isArray(items) ? items : [];
-      if (!rows.length) {
-        body.innerHTML = `<tr><td colspan="4">暂无数据</td></tr>`;
-        return;
-      }
-      body.innerHTML = rows.map((model) => `<tr>
-        <td>${model?.model ? escapeHtml(model.model) : "-"}</td>
-        <td>${numberValue(model?.requests)}</td>
-        <td>${numberValue(model?.success)}</td>
-        <td>${numberValue(model?.failed)}</td>
-      </tr>`).join("");
-    }
-
-    function renderStats(data) {
-      const calls = data?.calls || {};
-      const tokens = data?.tokens || {};
-      el("statTotalRequests").textContent = numberValue(calls.total_requests);
-      el("statSuccess").textContent = numberValue(calls.success_count);
-      el("statFailed").textContent = numberValue(calls.failure_count);
-      el("statTokenCount").textContent = numberValue(tokens.total);
-      el("statRetries").textContent = numberValue(calls.retry_count);
-      el("stat429").textContent = numberValue(calls.status_429_count);
-      el("statInflight").textContent = numberValue(tokens.inflight);
-      el("statHealthyTokens").textContent = numberValue(tokens.healthy_count);
-      el("lastRequestAt").textContent = formatTime(calls.last_request_at);
-      renderTokenStats(tokens.items);
-      renderModelStats(calls.by_model);
-    }
-
-    async function fetchStats() {
-      const res = await fetch("/api/stats");
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error?.message || "获取统计失败");
-      renderStats(data);
-      return data;
-    }
-
-    async function fetchExportData() {
-      const res = await fetch("/api/export/json");
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error?.message || "导出失败");
-      return data;
-    }
-
-    async function exportJSONFile() {
-      const data = await fetchExportData();
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `Freebuff-export-${new Date().toISOString().slice(0, 10)}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-    }
-
-    async function copyAuthTokens() {
-      const data = await fetchExportData();
-      const tokens = Array.isArray(data?.auth_tokens) ? data.auth_tokens : [];
-      await navigator.clipboard.writeText(JSON.stringify(tokens));
-    }
-
-    async function fetchAdminStatus() {
-      const res = await fetch("/api/admin/status");
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error?.message || "获取管理状态失败");
-      setAuthUI(data);
-      return data;
-    }
-
-    async function fetchPolicy() {
-      const res = await fetch("/api/policy");
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error?.message || "获取策略失败");
-      el("policyJson").value = JSON.stringify(data?.policy || {}, null, 2);
-      return data;
-    }
-
-    async function savePolicy() {
-      let policy;
-      try {
-        policy = JSON.parse(el("policyJson").value || "{}");
-      } catch {
-        throw new Error("策略 JSON 格式无效");
-      }
-      const res = await fetch("/api/policy", {
-        method: "PUT",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ policy })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error?.message || "保存策略失败");
-      el("policyJson").value = JSON.stringify(data?.policy || {}, null, 2);
-      return data;
-    }
-
-    async function fetchAliases() {
-      const res = await fetch("/api/model-aliases");
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error?.message || "获取模型别名失败");
-      el("aliasesJson").value = JSON.stringify(data?.aliases || {}, null, 2);
-      return data;
-    }
-
-    async function saveAliases() {
-      let aliases;
-      try {
-        aliases = JSON.parse(el("aliasesJson").value || "{}");
-      } catch {
-        throw new Error("模型别名 JSON 格式无效");
-      }
-      const res = await fetch("/api/model-aliases", {
-        method: "PUT",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ aliases })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error?.message || "保存模型别名失败");
-      el("aliasesJson").value = JSON.stringify(data?.aliases || {}, null, 2);
-      return data;
-    }
-
-    async function loginAdmin() {
-      const password = el("adminPassword").value.trim();
-      if (!password) throw new Error("请输入管理密码");
-      const res = await fetch("/api/admin/login", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ password })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error?.message || "登录失败");
-      await fetchAdminStatus();
-      await Promise.all([fetchStats(), fetchPolicy(), fetchAliases()]);
-      setStatus("管理登录成功。", "ok");
-    }
-
-    async function logoutAdmin() {
-      const res = await fetch("/api/admin/logout", { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error?.message || "退出失败");
-      await fetchAdminStatus();
-      renderStats({});
-      setStatus("已退出管理登录。");
-    }
-
-    async function createSession() {
-      setStatus("正在创建登录链接...");
-      const fingerprint = el("fingerprintInput").value.trim();
-      const body = fingerprint ? { fingerprint_id: fingerprint } : {};
-      const res = await fetch("/api/login/session", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(body)
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error?.message || "创建失败");
-
-      state.fingerprint_id = data.fingerprint_id;
-      state.fingerprint_hash = data.fingerprint_hash;
-      state.expires_at = data.expires_at;
-
-      el("loginLink").href = data.login_url;
-      el("loginLink").textContent = data.login_url;
-      el("fpId").textContent = data.fingerprint_id;
-      el("fpHash").textContent = data.fingerprint_hash;
-      el("expiresAt").textContent = data.expires_at;
-      el("pollBtn").disabled = false;
-      setStatus("登录链接已生成，请在新窗口完成授权。", "ok");
-    }
-
-    async function pollStatus() {
-      if (!state.fingerprint_id) return;
-      setStatus("轮询中...");
-      const qs = new URLSearchParams({
-        fingerprint_id: state.fingerprint_id,
-        fingerprint_hash: state.fingerprint_hash,
-        expires_at: state.expires_at
-      });
-      const res = await fetch(`/api/login/status?${qs}`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error?.message || "查询失败");
-
-      if (!data.user) {
-        setStatus("尚未授权，稍后重试。");
-        return;
-      }
-
-      const token = data.user.authToken || "";
-      el("tokens").value = JSON.stringify([token]);
-      const tag = data.token_registered ? "并已注册到服务" : "（已存在，无需重复注册）";
-      setStatus(`登录成功：${data.user.name || ""} ${data.user.email || ""} ${tag}`.trim(), "ok");
-    }
-
-    el("createBtn").addEventListener("click", async () => {
-      try { await createSession(); } catch (e) { setStatus(e.message, "err"); }
-    });
-
-    el("pollBtn").addEventListener("click", async () => {
-      try { await pollStatus(); } catch (e) { setStatus(e.message, "err"); }
-    });
-
-    el("adminLoginBtn").addEventListener("click", async () => {
-      try { await loginAdmin(); } catch (e) { setStatus(e.message, "err"); }
-    });
-
-    el("adminLogoutBtn").addEventListener("click", async () => {
-      try { await logoutAdmin(); } catch (e) { setStatus(e.message, "err"); }
-    });
-
-    el("statsRefreshBtn").addEventListener("click", async () => {
-      try { await fetchStats(); setStatus("统计已更新。", "ok"); } catch (e) { setStatus(e.message, "err"); }
-    });
-
-    el("exportJsonBtn").addEventListener("click", async () => {
-      try { await exportJSONFile(); setStatus("JSON 导出成功。", "ok"); } catch (e) { setStatus(e.message, "err"); }
-    });
-
-    el("copyTokensBtn").addEventListener("click", async () => {
-      try { await copyAuthTokens(); setStatus("AUTH_TOKENS 已复制。", "ok"); } catch (e) { setStatus(e.message, "err"); }
-    });
-
-    el("policyRefreshBtn").addEventListener("click", async () => {
-      try { await fetchPolicy(); setStatus("策略已刷新。", "ok"); } catch (e) { setStatus(e.message, "err"); }
-    });
-
-    el("policySaveBtn").addEventListener("click", async () => {
-      try { await savePolicy(); await fetchStats(); setStatus("策略已保存并生效。", "ok"); } catch (e) { setStatus(e.message, "err"); }
-    });
-
-    el("aliasesRefreshBtn").addEventListener("click", async () => {
-      try { await fetchAliases(); setStatus("模型别名已刷新。", "ok"); } catch (e) { setStatus(e.message, "err"); }
-    });
-
-    el("aliasesSaveBtn").addEventListener("click", async () => {
-      try { await saveAliases(); setStatus("模型别名已保存。", "ok"); } catch (e) { setStatus(e.message, "err"); }
-    });
-
-    async function initializeDashboard() {
-      let authStatus;
-      try {
-        authStatus = await fetchAdminStatus();
-      } catch (e) {
-        setStatus(e.message, "err");
-        return;
-      }
-
-      if (!authStatus?.enabled || authStatus?.authenticated) {
-        try {
-          await Promise.all([fetchStats(), fetchPolicy(), fetchAliases()]);
-        } catch (e) {
-          setStatus(`统计加载失败：${e.message}`, "err");
+        function t(key) {
+            return i18n[state.currentLang][key] || i18n.zh[key] || key;
         }
-      } else {
-        renderStats({});
-      }
-    }
 
-    initializeDashboard();
-  </script>
+        function updateLangButtons() {
+            document.querySelectorAll('.lang-btn').forEach((btn) => {
+                btn.classList.toggle('active', btn.dataset.lang === state.currentLang);
+            });
+        }
+
+        function applyTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach((node) => {
+                node.textContent = t(node.dataset.i18n);
+            });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach((node) => {
+                node.placeholder = t(node.dataset.i18nPlaceholder);
+            });
+        }
+
+        function setLang(lang) {
+            state.currentLang = lang;
+            localStorage.setItem('freebuff_lang', lang);
+            document.documentElement.lang = lang;
+            updateLangButtons();
+            applyTranslations();
+            renderAccounts();
+        }
+
+        function showMessage(text, type = 'info') {
+            const box = el('globalMessage');
+            box.className = 'message';
+            if (type === 'error') box.classList.add('message-error');
+            box.textContent = text;
+            box.classList.remove('hidden');
+        }
+
+        function hideMessage() {
+            el('globalMessage').classList.add('hidden');
+        }
+
+        function escapeHtml(v) {
+            return String(v ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch] || ch));
+        }
+
+        function maskName(value) {
+            if (!state.privacyMode || !value) return value || '-';
+            if (value.length <= 8) return value;
+            return `${value.slice(0, 4)}...${value.slice(-3)}`;
+        }
+
+        function fmtTime(value) {
+            if (!value) return '-';
+            const time = new Date(value);
+            if (Number.isNaN(time.getTime())) return '-';
+            return time.toLocaleString();
+        }
+
+        function switchTab(name) {
+            document.querySelectorAll('.tab').forEach((tab) => tab.classList.toggle('active', tab.dataset.tab === name));
+            el('tabAccounts').classList.toggle('hidden', name !== 'accounts');
+            el('tabSettings').classList.toggle('hidden', name !== 'settings');
+            el('tabApi').classList.toggle('hidden', name !== 'api');
+        }
+
+        async function api(url, options = {}) {
+            const res = await fetch(url, options);
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data?.error?.message || `Request failed (${res.status})`);
+            return data;
+        }
+
+        async function fetchAdminStatus() {
+            const data = await api('/api/admin/status');
+            state.adminEnabled = !!data.enabled;
+            state.authenticated = !!data.authenticated;
+            el('logoutBtn').style.display = state.adminEnabled ? 'inline-block' : 'none';
+            return data;
+        }
+
+        async function login() {
+            try {
+                const password = el('pwdField').value.trim();
+                if (!password) throw new Error(t('login.passwordPlaceholder'));
+                await api('/api/admin/login', {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json' },
+                    body: JSON.stringify({ password })
+                });
+                el('loginError').classList.add('hidden');
+                await fetchAdminStatus();
+                showMainPage();
+                await loadMainData();
+            } catch (err) {
+                el('loginError').textContent = err.message || t('login.error');
+                el('loginError').classList.remove('hidden');
+            }
+        }
+
+        async function logout() {
+            try {
+                await api('/api/admin/logout', { method: 'POST' });
+            } catch (_) { }
+            location.reload();
+        }
+
+        function showMainPage() {
+            el('loginPage').classList.add('hidden');
+            el('mainPage').classList.remove('hidden');
+        }
+
+        function showLoginPage() {
+            el('mainPage').classList.add('hidden');
+            el('loginPage').classList.remove('hidden');
+        }
+
+        async function fetchStats() {
+            state.stats = await api('/api/stats');
+            const calls = state.stats.calls || {};
+            const tokens = state.stats.tokens || {};
+            el('statAccounts').textContent = tokens.total || 0;
+            el('statRequests').textContent = calls.total_requests || 0;
+            el('statSuccess').textContent = calls.success_count || 0;
+            el('statFailed').textContent = calls.failure_count || 0;
+            el('statRetries').textContent = calls.retry_count || 0;
+            el('statInflight').textContent = tokens.inflight || 0;
+            renderAccounts();
+        }
+
+        function getFilteredTokens() {
+            const rows = Array.isArray(state.stats?.tokens?.items) ? state.stats.tokens.items : [];
+            return rows.filter((row) => {
+                const name = String(row?.name || '').toLowerCase();
+                if (state.filterKeyword && !name.includes(state.filterKeyword.toLowerCase())) return false;
+                if (state.filterStatus === 'healthy' && !row?.healthy) return false;
+                if (state.filterStatus === 'unhealthy' && row?.healthy) return false;
+                if (state.filterStatus === 'inactive' && (row?.inflight > 0 || (row?.runs || []).length > 0)) return false;
+                return true;
+            });
+        }
+
+        function renderAccounts() {
+            const list = el('accountsList');
+            const rows = getFilteredTokens();
+            if (!rows.length) {
+                list.innerHTML = `<div class="card" style="text-align:center;color:#64748b">${escapeHtml(t('accounts.empty'))}</div>`;
+                return;
+            }
+            list.innerHTML = rows.map((row, index) => {
+                const badgeClass = row?.healthy ? 'badge-success' : 'badge-warning';
+                const badgeText = row?.healthy ? t('filter.healthy') : t('filter.unhealthy');
+                const runCount = Array.isArray(row?.runs) ? row.runs.length : 0;
+                return `<div class="account-card">
+                    <div class="account-header">
+                        <div class="account-info">
+                            <div class="account-email">${escapeHtml(maskName(row?.name || '-'))}</div>
+                            <div class="account-meta">
+                                <span class="badge ${badgeClass}">${escapeHtml(badgeText)}</span>
+                                <span class="badge badge-info">inflight ${Number(row?.inflight || 0)}</span>
+                                <span class="badge badge-info">runs ${runCount}</span>
+                            </div>
+                        </div>
+                        <div class="account-actions">
+                            <button class="btn btn-secondary btn-sm" onclick="refreshOne()">${escapeHtml(t('accounts.refresh'))}</button>
+                            <button class="btn btn-secondary btn-sm" onclick="copyTokenByIndex(${index})">${escapeHtml(t('accounts.copy'))}</button>
+                            <button class="btn btn-secondary btn-sm" onclick="unsupportedAction()">${escapeHtml(t('accounts.disable'))}</button>
+                            <button class="btn btn-danger btn-sm" onclick="unsupportedAction()">${escapeHtml(t('accounts.delete'))}</button>
+                        </div>
+                    </div>
+                    <div class="account-stats">
+                        <div class="account-stat"><div class="account-stat-value">${Number(row?.total_requests || 0)}</div><div class="account-stat-label">Req</div></div>
+                        <div class="account-stat"><div class="account-stat-value">${Number(row?.success_count || 0)}</div><div class="account-stat-label">Success</div></div>
+                        <div class="account-stat"><div class="account-stat-value">${Number(row?.failure_count || 0)}</div><div class="account-stat-label">Failed</div></div>
+                        <div class="account-stat"><div class="account-stat-value">${Number(row?.max_concurrent || 0)}</div><div class="account-stat-label">Max</div></div>
+                        <div class="account-stat"><div class="account-stat-value">${escapeHtml(fmtTime(row?.last_used_at))}</div><div class="account-stat-label">Last used</div></div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        async function refreshOne() {
+            await fetchStats();
+            showMessage(t('msg.loaded'));
+        }
+
+        async function copyTokenName(name) {
+            await navigator.clipboard.writeText(name || '');
+            showMessage(t('msg.copied'));
+        }
+
+        async function copyTokenByIndex(index) {
+            const rows = getFilteredTokens();
+            await copyTokenName(rows[index]?.name || '');
+        }
+
+        function unsupportedAction() {
+            showMessage(t('accounts.unsupported'), 'error');
+        }
+
+        async function fetchPolicy() {
+            const data = await api('/api/policy');
+            el('policyJson').value = JSON.stringify(data.policy || {}, null, 2);
+        }
+
+        async function savePolicy() {
+            let policy = {};
+            try {
+                policy = JSON.parse(el('policyJson').value || '{}');
+            } catch {
+                throw new Error('Policy JSON parse failed');
+            }
+            const data = await api('/api/policy', {
+                method: 'PUT',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ policy })
+            });
+            el('policyJson').value = JSON.stringify(data.policy || {}, null, 2);
+        }
+
+        async function fetchAliases() {
+            const data = await api('/api/model-aliases');
+            el('aliasesJson').value = JSON.stringify(data.aliases || {}, null, 2);
+        }
+
+        async function saveAliases() {
+            let aliases = {};
+            try {
+                aliases = JSON.parse(el('aliasesJson').value || '{}');
+            } catch {
+                throw new Error('Aliases JSON parse failed');
+            }
+            const data = await api('/api/model-aliases', {
+                method: 'PUT',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ aliases })
+            });
+            el('aliasesJson').value = JSON.stringify(data.aliases || {}, null, 2);
+        }
+
+        async function fetchExportData() {
+            state.exportData = await api('/api/export/json');
+            el('tokens').value = JSON.stringify(state.exportData.auth_tokens || [], null, 2);
+            return state.exportData;
+        }
+
+        async function exportJSONFile() {
+            const data = await fetchExportData();
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Freebuff-export-${new Date().toISOString().slice(0, 10)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        async function copyAuthTokens() {
+            const data = state.exportData || await fetchExportData();
+            await navigator.clipboard.writeText(JSON.stringify(data.auth_tokens || []));
+            showMessage(t('msg.copied'));
+        }
+
+        async function createSession() {
+            const fingerprint = el('fingerprintInput').value.trim();
+            const body = fingerprint ? { fingerprint_id: fingerprint } : {};
+            const data = await api('/api/login/session', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            state.session = data;
+            el('loginLink').href = data.login_url || '#';
+            el('loginLink').textContent = data.login_url || '';
+            el('fpId').textContent = data.fingerprint_id || '-';
+            el('fpHash').textContent = data.fingerprint_hash || '-';
+            el('expiresAt').textContent = data.expires_at || '-';
+            el('pollBtn').disabled = false;
+            showMessage(t('msg.sessionCreated'));
+        }
+
+        async function pollStatus() {
+            if (!state.session) return;
+            const qs = new URLSearchParams({
+                fingerprint_id: state.session.fingerprint_id,
+                fingerprint_hash: state.session.fingerprint_hash,
+                expires_at: state.session.expires_at
+            });
+            const data = await api(`/api/login/status?${qs}`);
+            if (!data.user) {
+                showMessage(t('msg.waitAuth'));
+                return;
+            }
+            await fetchExportData();
+            showMessage(t('msg.loginSuccess'));
+            await fetchStats();
+        }
+
+        function copy(id) {
+            const text = el(id).textContent || '';
+            navigator.clipboard.writeText(text).then(() => showMessage(t('msg.copied')));
+        }
+
+        async function loadMainData() {
+            hideMessage();
+            const baseUrl = location.origin;
+            el('openaiEndpoint').textContent = `${baseUrl}/v1/chat/completions`;
+            el('modelsEndpoint').textContent = `${baseUrl}/v1/models`;
+            el('statsEndpoint').textContent = `${baseUrl}/api/stats`;
+            el('metricsEndpoint').textContent = `${baseUrl}/metrics`;
+            await Promise.all([fetchStats(), fetchPolicy(), fetchAliases(), fetchExportData()]);
+        }
+
+        function bindEvents() {
+            document.querySelectorAll('.tab').forEach((tab) => {
+                tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+            });
+            el('pwdField').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') login();
+            });
+            el('privacyModeToggle').checked = state.privacyMode;
+            el('privacyModeToggle').addEventListener('change', (e) => {
+                state.privacyMode = e.target.checked;
+                localStorage.setItem('privacyMode', String(state.privacyMode));
+                renderAccounts();
+            });
+            el('filterSearch').addEventListener('input', (e) => {
+                state.filterKeyword = e.target.value || '';
+                renderAccounts();
+            });
+            el('filterStatusSelect').addEventListener('change', (e) => {
+                state.filterStatus = e.target.value;
+                renderAccounts();
+            });
+            el('toggleAddPanelBtn').addEventListener('click', () => {
+                const panel = el('addAccountPanel');
+                panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+            });
+            el('createBtn').addEventListener('click', async () => {
+                try { await createSession(); } catch (e) { showMessage(e.message, 'error'); }
+            });
+            el('pollBtn').addEventListener('click', async () => {
+                try { await pollStatus(); } catch (e) { showMessage(e.message, 'error'); }
+            });
+            el('exportBtn').addEventListener('click', async () => {
+                try { await exportJSONFile(); showMessage(t('msg.exported')); } catch (e) { showMessage(e.message, 'error'); }
+            });
+            el('copyTokensBtn').addEventListener('click', async () => {
+                try { await copyAuthTokens(); } catch (e) { showMessage(e.message, 'error'); }
+            });
+            el('policyRefreshBtn').addEventListener('click', async () => {
+                try { await fetchPolicy(); showMessage(t('msg.loaded')); } catch (e) { showMessage(e.message, 'error'); }
+            });
+            el('policySaveBtn').addEventListener('click', async () => {
+                try { await savePolicy(); await fetchStats(); showMessage(t('msg.loaded')); } catch (e) { showMessage(e.message, 'error'); }
+            });
+            el('aliasesRefreshBtn').addEventListener('click', async () => {
+                try { await fetchAliases(); showMessage(t('msg.loaded')); } catch (e) { showMessage(e.message, 'error'); }
+            });
+            el('aliasesSaveBtn').addEventListener('click', async () => {
+                try { await saveAliases(); showMessage(t('msg.loaded')); } catch (e) { showMessage(e.message, 'error'); }
+            });
+        }
+
+        async function init() {
+            updateLangButtons();
+            applyTranslations();
+            bindEvents();
+            try {
+                const status = await fetchAdminStatus();
+                if (status.enabled && !status.authenticated) {
+                    showLoginPage();
+                    return;
+                }
+                showMainPage();
+                await loadMainData();
+            } catch (err) {
+                showLoginPage();
+                el('loginError').textContent = err.message || t('login.connectError');
+                el('loginError').classList.remove('hidden');
+            }
+        }
+
+        init();
+    </script>
 </body>
 </html>
