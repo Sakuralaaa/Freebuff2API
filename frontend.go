@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	"io/fs"
+	"log"
 	"net/http"
 	"strings"
 )
@@ -40,7 +41,13 @@ func (s *Server) handleFrontendIndex(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write(frontendIndex)
+	if _, err := w.Write(frontendIndex); err != nil {
+		if s.logger != nil {
+			s.logger.Printf("write frontend index failed: %v", err)
+		} else {
+			log.Printf("write frontend index failed: %v", err)
+		}
+	}
 }
 
 func requiresAdminSession(path string) bool {
