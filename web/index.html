@@ -1,64 +1,42 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Freebuff 控制台</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Freebuff2API Console</title>
   <style>
-    :root {
-      --bg: #fff5fb;
-      --bg-soft: #ffe8f4;
-      --card: #ffffff;
-      --line: #ffd0e6;
-      --line-strong: #ffb3d7;
-      --primary: #e91e63;
-      --primary-strong: #c2185b;
-      --text-main: #3a1d2f;
-      --text-sub: #7a4d66;
-      --ok: #1b8f4b;
-      --danger: #c62828;
-      --shadow: 0 10px 30px rgba(233, 30, 99, 0.12);
-    }
-
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      font-family: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #f8fafc;
+      color: #1e293b;
       min-height: 100vh;
-      color: var(--text-main);
-      background:
-        radial-gradient(circle at 0% 0%, #ffffff 0, var(--bg-soft) 42%, transparent 72%),
-        radial-gradient(circle at 100% 100%, #ffffff 0, var(--bg-soft) 38%, transparent 70%),
-        var(--bg);
-      padding: 16px;
       -webkit-tap-highlight-color: transparent;
     }
 
     .container {
-      max-width: 1080px;
+      max-width: 1100px;
       margin: 0 auto;
+      padding: 16px;
     }
 
     .hero {
-      background: linear-gradient(135deg, #fff 0%, #ffe7f3 100%);
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      padding: 20px;
-      box-shadow: var(--shadow);
-      margin-bottom: 14px;
+      background: linear-gradient(135deg, #f0f4ff 0%, #faf5ff 100%);
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
     }
 
     .hero h1 {
-      font-size: clamp(20px, 2.2vw, 28px);
-      color: var(--primary-strong);
-      display: flex;
-      align-items: center;
-      gap: 8px;
+      font-size: 22px;
+      color: #7c3aed;
+      margin-bottom: 6px;
     }
 
     .hero p {
-      margin-top: 8px;
-      color: var(--text-sub);
+      color: #64748b;
       font-size: 14px;
     }
 
@@ -69,95 +47,92 @@
     }
 
     .card {
-      background: var(--card);
-      border: 1px solid var(--line);
+      background: #fff;
       border-radius: 12px;
-      box-shadow: 0 6px 18px rgba(233, 30, 99, 0.08);
-      padding: 14px;
+      padding: 16px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+      border: 1px solid #e2e8f0;
     }
 
     .wide { grid-column: 1 / -1; }
-
-    .card h2 {
-      color: var(--primary-strong);
-      font-size: 16px;
-      margin-bottom: 12px;
-    }
 
     .card-head {
       display: flex;
       justify-content: space-between;
       align-items: center;
       gap: 8px;
-      flex-wrap: wrap;
       margin-bottom: 12px;
+      flex-wrap: wrap;
     }
 
-    .card-head h2 { margin: 0; }
+    .card h2 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #334155;
+    }
+
+    .card-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
 
     .row { margin-bottom: 10px; }
     .row:last-child { margin-bottom: 0; }
 
     label {
       display: block;
-      font-size: 13px;
       margin-bottom: 6px;
-      color: var(--text-sub);
+      color: #374151;
+      font-size: 14px;
       font-weight: 500;
     }
 
-    input, textarea, button {
+    input[type="text"],
+    input[type="password"],
+    textarea {
       width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #e2e8f0;
       border-radius: 8px;
       font-size: 14px;
-    }
-
-    input, textarea {
-      border: 1px solid var(--line);
       background: #fff;
-      color: var(--text-main);
-      padding: 10px 12px;
-      outline: none;
-      transition: .2s ease;
-    }
-
-    input:focus, textarea:focus {
-      border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(233, 30, 99, 0.14);
+      color: #1e293b;
     }
 
     textarea {
-      min-height: 96px;
       resize: vertical;
+      min-height: 92px;
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    input:focus,
+    textarea:focus {
+      outline: none;
+      border-color: #7c3aed;
+      box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
     }
 
     button {
       border: none;
+      border-radius: 8px;
       cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
       padding: 10px 12px;
       color: #fff;
-      background: linear-gradient(145deg, var(--primary), var(--primary-strong));
-      font-weight: 600;
-      transition: transform .1s ease, filter .2s ease;
+      background: #7c3aed;
+      transition: 0.2s ease;
+      width: 100%;
       margin-top: 8px;
-      box-shadow: 0 8px 18px rgba(233, 30, 99, 0.2);
     }
 
-    button:hover:not(:disabled) { filter: brightness(1.03); }
-    button:active:not(:disabled) { transform: translateY(1px); }
-
-    button:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-      box-shadow: none;
-    }
+    button:hover:not(:disabled) { background: #6d28d9; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
 
     .ghost {
-      background: #fff;
-      color: var(--primary-strong);
-      border: 1px solid var(--line-strong);
-      box-shadow: none;
+      background: #f1f5f9;
+      color: #374151;
     }
 
     .btn-inline {
@@ -170,48 +145,48 @@
     .meta {
       margin-top: 8px;
       font-size: 12px;
-      color: var(--text-sub);
+      color: #64748b;
       word-break: break-all;
     }
 
     a {
-      color: var(--primary-strong);
+      color: #7c3aed;
       text-decoration: none;
     }
 
     a:hover { text-decoration: underline; }
 
     code {
-      background: #fff6fb;
-      border: 1px solid var(--line);
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
       border-radius: 6px;
-      color: var(--primary-strong);
       padding: 2px 6px;
+      color: #5b21b6;
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     }
 
     #status {
-      border: 1px solid var(--line);
+      border: 1px solid #e2e8f0;
       border-radius: 8px;
       min-height: 40px;
       padding: 10px 12px;
-      background: #fff9fc;
-      color: var(--text-sub);
+      background: #f8fafc;
+      color: #64748b;
       display: flex;
       align-items: center;
       font-size: 14px;
     }
 
     #status.ok {
-      color: var(--ok);
-      border-color: #ccead8;
-      background: #f0fbf5;
+      color: #166534;
+      border-color: #bbf7d0;
+      background: #f0fdf4;
     }
 
     #status.err {
-      color: var(--danger);
-      border-color: #f1cccc;
-      background: #fff4f4;
+      color: #b91c1c;
+      border-color: #fecaca;
+      background: #fef2f2;
     }
 
     .stats-grid {
@@ -222,29 +197,29 @@
     }
 
     .stat-card {
-      background: linear-gradient(160deg, #fff, #fff4fa);
-      border: 1px solid var(--line);
+      background: #fff;
       border-radius: 10px;
       padding: 10px;
       text-align: center;
+      border: 1px solid #e2e8f0;
     }
 
     .stat-value {
-      font-size: 21px;
+      font-size: 20px;
       font-weight: 700;
-      color: var(--primary-strong);
+      color: #7c3aed;
       line-height: 1.2;
     }
 
     .stat-label {
       margin-top: 3px;
       font-size: 12px;
-      color: var(--text-sub);
+      color: #64748b;
     }
 
     .table-wrap {
       margin-top: 10px;
-      border: 1px solid var(--line);
+      border: 1px solid #e2e8f0;
       border-radius: 10px;
       overflow-x: auto;
     }
@@ -260,42 +235,28 @@
       text-align: left;
       padding: 9px 10px;
       white-space: nowrap;
-      border-bottom: 1px solid #ffe8f3;
+      border-bottom: 1px solid #f1f5f9;
     }
 
     th {
-      background: #fff4fa;
-      color: var(--primary-strong);
+      background: #f8fafc;
+      color: #334155;
       font-weight: 600;
     }
 
-    td { color: var(--text-sub); }
-
-    .logo-icon {
-      width: 20px;
-      height: 20px;
-      color: var(--primary-strong);
-      flex-shrink: 0;
-    }
+    td { color: #64748b; }
 
     @media (max-width: 640px) {
-      body { padding: 12px; }
+      .container { padding: 12px; }
       .hero, .card { padding: 12px; }
-      .card-actions { width: 100%; }
-      .card-actions button { flex: 1; text-align: center; }
     }
   </style>
 </head>
 <body>
   <main class="container">
     <section class="hero">
-      <h1>
-        <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
-        </svg>
-        Freebuff 控制台
-      </h1>
-      <p>登录、授权、统计与导出一体化管理（玫红白配色版）。</p>
+      <h1>Freebuff2API 控制台</h1>
+      <p>Kiro-Go 风格重构版：登录、授权、统计、策略与模型别名管理。</p>
     </section>
 
     <section class="grid">
@@ -303,7 +264,7 @@
         <h2>管理认证</h2>
         <div class="row">
           <label for="adminPassword">管理密码</label>
-          <input id="adminPassword" type="password" placeholder="请输入管理密码">
+          <input id="adminPassword" type="password" placeholder="请输入管理密码" />
         </div>
         <button id="adminLoginBtn">登录管理页面</button>
         <button id="adminLogoutBtn" class="ghost" style="display:none;">退出登录</button>
@@ -313,7 +274,7 @@
         <h2>登录会话</h2>
         <div class="row">
           <label for="fingerprintInput">自定义 fingerprint_id（可选）</label>
-          <input id="fingerprintInput" placeholder="留空则自动生成">
+          <input id="fingerprintInput" type="text" placeholder="留空则自动生成" />
         </div>
         <button id="createBtn">1) 生成登录链接</button>
         <div class="meta">login_url：<a id="loginLink" target="_blank" rel="noopener"></a></div>
@@ -325,15 +286,13 @@
       <div class="card">
         <h2>授权状态</h2>
         <button id="pollBtn" disabled>2) 轮询登录状态</button>
-        <div class="row" style="margin-top:10px;">
-          <div id="status"></div>
-        </div>
+        <div class="row" style="margin-top:10px;"><div id="status"></div></div>
       </div>
 
       <div class="card wide">
         <div class="card-head">
           <h2>统计面板</h2>
-          <div class="card-actions" style="display:flex;gap:8px;flex-wrap:wrap;">
+          <div class="card-actions">
             <button id="statsRefreshBtn" class="ghost btn-inline">刷新统计</button>
             <button id="exportJsonBtn" class="ghost btn-inline">导出 JSON</button>
             <button id="copyTokensBtn" class="ghost btn-inline">复制 AUTH_TOKENS</button>
@@ -341,38 +300,14 @@
         </div>
 
         <div class="stats-grid">
-          <div class="stat-card">
-            <div class="stat-value" id="statTotalRequests">0</div>
-            <div class="stat-label">总调用</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-value" id="statSuccess">0</div>
-            <div class="stat-label">成功调用</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-value" id="statFailed">0</div>
-            <div class="stat-label">失败调用</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-value" id="statTokenCount">0</div>
-            <div class="stat-label">Token 数量</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-value" id="statRetries">0</div>
-            <div class="stat-label">重试次数</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-value" id="stat429">0</div>
-            <div class="stat-label">429 次数</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-value" id="statInflight">0</div>
-            <div class="stat-label">当前并发</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-value" id="statHealthyTokens">0</div>
-            <div class="stat-label">健康 Token</div>
-          </div>
+          <div class="stat-card"><div class="stat-value" id="statTotalRequests">0</div><div class="stat-label">总调用</div></div>
+          <div class="stat-card"><div class="stat-value" id="statSuccess">0</div><div class="stat-label">成功调用</div></div>
+          <div class="stat-card"><div class="stat-value" id="statFailed">0</div><div class="stat-label">失败调用</div></div>
+          <div class="stat-card"><div class="stat-value" id="statTokenCount">0</div><div class="stat-label">Token 数量</div></div>
+          <div class="stat-card"><div class="stat-value" id="statRetries">0</div><div class="stat-label">重试次数</div></div>
+          <div class="stat-card"><div class="stat-value" id="stat429">0</div><div class="stat-label">429 次数</div></div>
+          <div class="stat-card"><div class="stat-value" id="statInflight">0</div><div class="stat-label">当前并发</div></div>
+          <div class="stat-card"><div class="stat-value" id="statHealthyTokens">0</div><div class="stat-label">健康 Token</div></div>
         </div>
 
         <div class="meta">最后请求时间：<code id="lastRequestAt">-</code></div>
@@ -390,9 +325,7 @@
                 <th>最近使用</th>
               </tr>
             </thead>
-            <tbody id="tokenStatsBody">
-              <tr><td colspan="6">暂无数据</td></tr>
-            </tbody>
+            <tbody id="tokenStatsBody"><tr><td colspan="6">暂无数据</td></tr></tbody>
           </table>
         </div>
 
@@ -407,9 +340,7 @@
                 <th>失败</th>
               </tr>
             </thead>
-            <tbody id="modelStatsBody">
-              <tr><td colspan="4">暂无数据</td></tr>
-            </tbody>
+            <tbody id="modelStatsBody"><tr><td colspan="4">暂无数据</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -417,7 +348,7 @@
       <div class="card wide">
         <div class="card-head">
           <h2>策略中心</h2>
-          <div class="card-actions" style="display:flex;gap:8px;flex-wrap:wrap;">
+          <div class="card-actions">
             <button id="policyRefreshBtn" class="ghost btn-inline">加载策略</button>
             <button id="policySaveBtn" class="btn-inline">保存策略</button>
           </div>
@@ -431,7 +362,7 @@
       <div class="card wide">
         <div class="card-head">
           <h2>模型别名</h2>
-          <div class="card-actions" style="display:flex;gap:8px;flex-wrap:wrap;">
+          <div class="card-actions">
             <button id="aliasesRefreshBtn" class="ghost btn-inline">加载别名</button>
             <button id="aliasesSaveBtn" class="btn-inline">保存别名</button>
           </div>
@@ -491,6 +422,10 @@
       return Number.isFinite(n) ? n : 0;
     }
 
+    function escapeHtml(v) {
+      return String(v ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[ch] ?? ch));
+    }
+
     function renderTokenStats(items) {
       const body = el("tokenStatsBody");
       const rows = Array.isArray(items) ? items : [];
@@ -501,7 +436,7 @@
       body.innerHTML = rows.map((token) => {
         const runCount = Array.isArray(token?.runs) ? token.runs.length : 0;
         return `<tr>
-          <td>${token?.name || "-"}</td>
+          <td>${token?.name ? escapeHtml(token.name) : "-"}</td>
           <td>${numberValue(token?.total_requests)}</td>
           <td>${numberValue(token?.success_count)}</td>
           <td>${numberValue(token?.failure_count)}</td>
@@ -519,7 +454,7 @@
         return;
       }
       body.innerHTML = rows.map((model) => `<tr>
-        <td>${model?.model || "-"}</td>
+        <td>${model?.model ? escapeHtml(model.model) : "-"}</td>
         <td>${numberValue(model?.requests)}</td>
         <td>${numberValue(model?.success)}</td>
         <td>${numberValue(model?.failed)}</td>
@@ -758,6 +693,7 @@
         setStatus(e.message, "err");
         return;
       }
+
       if (!authStatus?.enabled || authStatus?.authenticated) {
         try {
           await Promise.all([fetchStats(), fetchPolicy(), fetchAliases()]);
