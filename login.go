@@ -235,7 +235,7 @@ func scalarString(value any) string {
 	case string:
 		return typed
 	case float64:
-		if !math.IsNaN(typed) && !math.IsInf(typed, 0) && math.Trunc(typed) == typed {
+		if !math.IsNaN(typed) && !math.IsInf(typed, 0) && math.Trunc(typed) == typed && typed >= math.MinInt64 && typed <= math.MaxInt64 {
 			return strconv.FormatInt(int64(typed), 10)
 		}
 		return strconv.FormatFloat(typed, 'f', -1, 64)
