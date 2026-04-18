@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Freebuff2API 控制台</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 2rem auto; max-width: 860px; line-height: 1.5; padding: 0 1rem; }
+    button { cursor: pointer; }
+    input, button, textarea { font-size: 14px; padding: .5rem; width: 100%; box-sizing: border-box; margin-top: .5rem; }
+    .row { margin-bottom: 1rem; }
+    .muted { color: #666; font-size: 13px; }
+    .ok { color: #0f7b0f; }
+    .err { color: #c40000; }
+    code { background: #f4f4f4; padding: .15rem .35rem; border-radius: 4px; }
+    textarea { min-height: 90px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  </style>
+</head>
+<body>
+  <h1>Freebuff2API 前端控制台</h1>
+  <p class="muted">用于获取 Freebuff 登录令牌，并快速验证代理服务状态。</p>
+
+  <div class="row">
+    <label>自定义 fingerprint_id（可选）</label>
+    <input id="fingerprintInput" placeholder="留空则自动生成">
+    <button id="createBtn">1) 生成登录链接</button>
+  </div>
+
+  <div class="row">
+    <div>login_url：<a id="loginLink" target="_blank" rel="noopener"></a></div>
+    <div class="muted">fingerprint_id: <code id="fpId"></code></div>
+    <div class="muted">fingerprint_hash: <code id="fpHash"></code></div>
+    <div class="muted">expires_at: <code id="expiresAt"></code></div>
+  </div>
+
+  <div class="row">
+    <button id="pollBtn" disabled>2) 轮询登录状态</button>
+    <div id="status"></div>
+  </div>
+
+  <div class="row">
+    <label>AUTH_TOKENS（可直接复制到环境变量）</label>
+    <textarea id="tokens" readonly></textarea>
+  </div>
+
+  <script>
+    const state = {};
+    const el = (id) => document.getElementById(id);
+    const statusEl = el("status");
+
+    function setStatus(text, cls = "") {
+      statusEl.className = cls;
+      statusEl.textContent = text;
+    }
+
+    async function createSession() {
+      setStatus("正在创建登录链接...");
+      const fingerprint = el("fingerprintInput").value.trim();
+      const body = fingerprint ? { fingerprint_id: fingerprint } : {};
+      const res = await fetch("/api/login/session", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error?.message || "创建失败");
+
+      state.fingerprint_id = data.fingerprint_id;
+      state.fingerprint_hash = data.fingerprint_hash;
+      state.expires_at = data.expires_at;
+
+      el("loginLink").href = data.login_url;
+      el("loginLink").textContent = data.login_url;
+      el("fpId").textContent = data.fingerprint_id;
+      el("fpHash").textContent = data.fingerprint_hash;
+      el("expiresAt").textContent = data.expires_at;
+      el("pollBtn").disabled = false;
+      setStatus("登录链接已生成，请在新窗口完成授权。", "ok");
+    }
+
+    async function pollStatus() {
+      if (!state.fingerprint_id) return;
+      setStatus("轮询中...");
+      const qs = new URLSearchParams({
+        fingerprint_id: state.fingerprint_id,
+        fingerprint_hash: state.fingerprint_hash,
+        expires_at: state.expires_at
+      });
+      const res = await fetch(`/api/login/status?${qs}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error?.message || "查询失败");
+
+      if (!data.user) {
+        setStatus("尚未授权，稍后重试。");
+        return;
+      }
+
+      const token = data.user.authToken || data.user.auth_token || "";
+      el("tokens").value = JSON.stringify([token]);
+      setStatus(`登录成功：${data.user.name || ""} ${data.user.email || ""}`.trim(), "ok");
+    }
+
+    el("createBtn").addEventListener("click", async () => {
+      try { await createSession(); } catch (e) { setStatus(e.message, "err"); }
+    });
+
+    el("pollBtn").addEventListener("click", async () => {
+      try { await pollStatus(); } catch (e) { setStatus(e.message, "err"); }
+    });
+  </script>
+</body>
+</html>
