@@ -196,7 +196,7 @@ func (m *RunManager) Cooldown(lease *runLease, duration time.Duration, reason st
 }
 
 func (m *RunManager) RecordResult(lease *runLease, success bool) {
-	if lease == nil || lease.pool == nil || lease.run == nil {
+	if lease == nil || lease.pool == nil {
 		return
 	}
 	lease.pool.recordResult(success)
