@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -175,13 +176,11 @@ func (s *Server) handleChatCompletions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	startTime := time.Now()
-	recordedResult := false
+	var recordOnce sync.Once
 	recordResult := func(success bool) {
-		if recordedResult {
-			return
-		}
-		s.stats.Record(requestedModel, success)
-		recordedResult = true
+		recordOnce.Do(func() {
+			s.stats.Record(requestedModel, success)
+		})
 	}
 
 	for attempt := 0; attempt < 2; attempt++ {

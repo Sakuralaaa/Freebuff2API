@@ -11,6 +11,14 @@ type adminLoginRequest struct {
 	Password string `json:"password"`
 }
 
+type tokenStatsAggregate struct {
+	totalRequests int
+	totalSuccess  int
+	totalFailed   int
+	activeRuns    int
+	drainingRuns  int
+}
+
 func (s *Server) handleAdminStatus(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		writeOpenAIError(w, http.StatusMethodNotAllowed, "method not allowed", "invalid_request_error", "")
@@ -86,19 +94,7 @@ func (s *Server) handleStats(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tokenState := s.runs.Snapshots()
-	totalTokenRequests := 0
-	totalTokenSuccess := 0
-	totalTokenFailed := 0
-	activeRuns := 0
-	drainingRuns := 0
-
-	for _, token := range tokenState {
-		totalTokenRequests += token.TotalRequests
-		totalTokenSuccess += token.SuccessCount
-		totalTokenFailed += token.FailureCount
-		activeRuns += len(token.Runs)
-		drainingRuns += token.DrainingRuns
-	}
+	aggregatedTokenStats := aggregateTokenStats(tokenState)
 
 	writeJSON(w, http.StatusOK, map[string]any{
 		"started_at": s.started.UTC(),
@@ -106,12 +102,24 @@ func (s *Server) handleStats(w http.ResponseWriter, r *http.Request) {
 		"calls":      s.stats.Snapshot(),
 		"tokens": map[string]any{
 			"total":          len(tokenState),
-			"active_runs":    activeRuns,
-			"draining_runs":  drainingRuns,
-			"total_requests": totalTokenRequests,
-			"success_count":  totalTokenSuccess,
-			"failure_count":  totalTokenFailed,
+			"active_runs":    aggregatedTokenStats.activeRuns,
+			"draining_runs":  aggregatedTokenStats.drainingRuns,
+			"total_requests": aggregatedTokenStats.totalRequests,
+			"success_count":  aggregatedTokenStats.totalSuccess,
+			"failure_count":  aggregatedTokenStats.totalFailed,
 			"items":          tokenState,
 		},
 	})
+}
+
+func aggregateTokenStats(tokens []tokenSnapshot) tokenStatsAggregate {
+	result := tokenStatsAggregate{}
+	for _, token := range tokens {
+		result.totalRequests += token.TotalRequests
+		result.totalSuccess += token.SuccessCount
+		result.totalFailed += token.FailureCount
+		result.activeRuns += len(token.Runs)
+		result.drainingRuns += token.DrainingRuns
+	}
+	return result
 }

@@ -89,6 +89,7 @@ func (s *callStats) Snapshot() callStatsSnapshot {
 	for _, modelStats := range s.perModel {
 		snapshot.ByModel = append(snapshot.ByModel, *modelStats)
 	}
+	// Keep most frequently used models first for dashboard readability.
 	sort.Slice(snapshot.ByModel, func(i, j int) bool {
 		return snapshot.ByModel[i].Requests > snapshot.ByModel[j].Requests
 	})
