@@ -18,7 +18,14 @@
 </head>
 <body>
   <h1>Freebuff2API 前端控制台</h1>
-  <p class="muted">用于获取 Freebuff 登录令牌，并快速验证代理服务状态。</p>
+  <p class="muted">用于通过网页完成 Freebuff 登录并自动注册 Token 到服务运行时。</p>
+
+  <div class="row" id="adminRow" style="display:none;">
+    <label>管理密码</label>
+    <input id="adminPassword" type="password" placeholder="请输入管理密码">
+    <button id="adminLoginBtn">登录管理页面</button>
+    <button id="adminLogoutBtn" style="display:none;">退出登录</button>
+  </div>
 
   <div class="row">
     <label>自定义 fingerprint_id（可选）</label>
@@ -39,7 +46,7 @@
   </div>
 
   <div class="row">
-    <label>AUTH_TOKENS（可直接复制到环境变量）</label>
+    <label>AUTH_TOKENS（可选，兼容旧部署）</label>
     <textarea id="tokens" readonly></textarea>
   </div>
 
@@ -51,6 +58,49 @@
     function setStatus(text, cls = "") {
       statusEl.className = cls;
       statusEl.textContent = text;
+    }
+
+    function setAuthUI(status) {
+      const enabled = !!status?.enabled;
+      const authenticated = !!status?.authenticated;
+      el("adminRow").style.display = enabled ? "block" : "none";
+      el("adminLoginBtn").style.display = enabled && !authenticated ? "block" : "none";
+      el("adminPassword").style.display = enabled && !authenticated ? "block" : "none";
+      el("adminLogoutBtn").style.display = enabled && authenticated ? "block" : "none";
+      const disabled = enabled && !authenticated;
+      el("createBtn").disabled = disabled;
+      el("pollBtn").disabled = disabled || !state.fingerprint_id;
+      if (disabled) setStatus("请先输入管理密码登录。");
+    }
+
+    async function fetchAdminStatus() {
+      const res = await fetch("/api/admin/status");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error?.message || "获取管理状态失败");
+      setAuthUI(data);
+      return data;
+    }
+
+    async function loginAdmin() {
+      const password = el("adminPassword").value.trim();
+      if (!password) throw new Error("请输入管理密码");
+      const res = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ password })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error?.message || "登录失败");
+      await fetchAdminStatus();
+      setStatus("管理登录成功。", "ok");
+    }
+
+    async function logoutAdmin() {
+      const res = await fetch("/api/admin/logout", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error?.message || "退出失败");
+      await fetchAdminStatus();
+      setStatus("已退出管理登录。");
     }
 
     async function createSession() {
@@ -97,7 +147,8 @@
 
       const token = data.user.authToken || "";
       el("tokens").value = JSON.stringify([token]);
-      setStatus(`登录成功：${data.user.name || ""} ${data.user.email || ""}`.trim(), "ok");
+      const tag = data.token_registered ? "并已注册到服务" : "（已存在，无需重复注册）";
+      setStatus(`登录成功：${data.user.name || ""} ${data.user.email || ""} ${tag}`.trim(), "ok");
     }
 
     el("createBtn").addEventListener("click", async () => {
@@ -107,6 +158,16 @@
     el("pollBtn").addEventListener("click", async () => {
       try { await pollStatus(); } catch (e) { setStatus(e.message, "err"); }
     });
+
+    el("adminLoginBtn").addEventListener("click", async () => {
+      try { await loginAdmin(); } catch (e) { setStatus(e.message, "err"); }
+    });
+
+    el("adminLogoutBtn").addEventListener("click", async () => {
+      try { await logoutAdmin(); } catch (e) { setStatus(e.message, "err"); }
+    });
+
+    fetchAdminStatus().catch((e) => setStatus(e.message, "err"));
   </script>
 </body>
 </html>

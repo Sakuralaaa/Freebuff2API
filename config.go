@@ -20,6 +20,7 @@ type Config struct {
 	UserAgent        string
 	APIKeys          []string
 	HTTPProxy        string
+	AdminPassword    string
 }
 
 type rawConfig struct {
@@ -30,6 +31,7 @@ type rawConfig struct {
 	RequestTimeout   string   `json:"REQUEST_TIMEOUT"`
 	APIKeys          []string `json:"API_KEYS"`
 	HTTPProxy        string   `json:"HTTP_PROXY"`
+	AdminPassword    string   `json:"ADMIN_PASSWORD"`
 }
 
 func loadConfig(configPath string) (Config, error) {
@@ -45,6 +47,7 @@ func loadConfig(configPath string) (Config, error) {
 	overrideCSV(&cfg.AuthTokens, "AUTH_TOKENS")
 	overrideCSV(&cfg.APIKeys, "API_KEYS")
 	overrideString(&cfg.HTTPProxy, "HTTP_PROXY")
+	overrideString(&cfg.AdminPassword, "ADMIN_PASSWORD")
 
 	rotationInterval, err := time.ParseDuration(strings.TrimSpace(cfg.RotationInterval))
 	if err != nil {
@@ -65,6 +68,7 @@ func loadConfig(configPath string) (Config, error) {
 		UserAgent:        generateUserAgent(),
 		APIKeys:          dedupeStrings(cfg.APIKeys),
 		HTTPProxy:        strings.TrimSpace(cfg.HTTPProxy),
+		AdminPassword:    strings.TrimSpace(cfg.AdminPassword),
 	}
 
 	switch {
@@ -72,15 +76,11 @@ func loadConfig(configPath string) (Config, error) {
 		return Config{}, errors.New("LISTEN_ADDR cannot be empty")
 	case finalCfg.UpstreamBaseURL == "":
 		return Config{}, errors.New("UPSTREAM_BASE_URL cannot be empty")
-	case len(finalCfg.AuthTokens) == 0:
-		return Config{}, errors.New("at least one AUTH_TOKENS is required")
 	case finalCfg.RotationInterval <= 0:
 		return Config{}, errors.New("ROTATION_INTERVAL must be greater than zero")
 	case finalCfg.RequestTimeout <= 0:
 		return Config{}, errors.New("REQUEST_TIMEOUT must be greater than zero")
 	}
-
-
 
 	return finalCfg, nil
 }

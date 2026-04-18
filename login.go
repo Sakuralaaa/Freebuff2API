@@ -119,6 +119,13 @@ func (s *Server) handleLoginStatus(w http.ResponseWriter, r *http.Request) {
 		if authToken != "" {
 			user["authToken"] = authToken
 			user["auth_token"] = authToken
+			poolName, added, err := s.runs.AddToken(authToken)
+			if err != nil {
+				writeOpenAIError(w, http.StatusBadGateway, "failed to register token from login status", "server_error", "")
+				return
+			}
+			payload["token_pool"] = poolName
+			payload["token_registered"] = added
 		}
 		payload["user"] = user
 	}
