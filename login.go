@@ -17,7 +17,10 @@ import (
 const (
 	freebuffCLICodeURL   = "https://freebuff.com/api/auth/cli/code"
 	freebuffCLIStatusURL = "https://freebuff.com/api/auth/cli/status"
+	fingerprintPrefix    = "codebuff-cli-"
 )
+
+var freebuffLoginHTTPClient = &http.Client{Timeout: 30 * time.Second}
 
 type loginSessionRequest struct {
 	FingerprintID string `json:"fingerprint_id"`
@@ -104,7 +107,18 @@ func (s *Server) handleLoginStatus(w http.ResponseWriter, r *http.Request) {
 	payload["fingerprintId"] = fingerprintID
 	payload["fingerprintHash"] = fingerprintHash
 	payload["expiresAt"] = expiresAt
-	_, loggedIn := payload["user"].(map[string]any)
+	user, loggedIn := payload["user"].(map[string]any)
+	if loggedIn {
+		authToken := strings.TrimSpace(stringValue(user, "authToken"))
+		authTokenAlt := strings.TrimSpace(stringValue(user, "auth_token"))
+		switch {
+		case authToken != "" && authTokenAlt == "":
+			user["auth_token"] = authToken
+		case authToken == "" && authTokenAlt != "":
+			user["authToken"] = authTokenAlt
+		}
+		payload["user"] = user
+	}
 	payload["login_success"] = loggedIn
 	writeJSON(w, http.StatusOK, payload)
 }
@@ -112,13 +126,13 @@ func (s *Server) handleLoginStatus(w http.ResponseWriter, r *http.Request) {
 func buildFingerprintID() string {
 	seed := make([]byte, 20)
 	if _, err := rand.Read(seed); err != nil {
-		return fmt.Sprintf("codebuff-cli-%d", time.Now().UnixNano())
+		return fmt.Sprintf("%s%d", fingerprintPrefix, time.Now().UnixNano())
 	}
 	token := base64.RawURLEncoding.EncodeToString(seed)
 	if len(token) > 26 {
 		token = token[:26]
 	}
-	return "codebuff-cli-" + token
+	return fingerprintPrefix + token
 }
 
 func requestFreebuffJSON(ctx context.Context, method, targetURL string, body any) (map[string]any, error) {
@@ -141,7 +155,7 @@ func requestFreebuffJSON(ctx context.Context, method, targetURL string, body any
 		req.Header.Set("Content-Type", "application/json")
 	}
 
-	resp, err := (&http.Client{Timeout: 30 * time.Second}).Do(req)
+	resp, err := freebuffLoginHTTPClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("request freebuff failed: %w", err)
 	}

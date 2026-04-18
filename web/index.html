@@ -95,7 +95,7 @@
         return;
       }
 
-      const token = data.user.authToken || data.user.auth_token || "";
+      const token = data.user.authToken || "";
       el("tokens").value = JSON.stringify([token]);
       setStatus(`登录成功：${data.user.name || ""} ${data.user.email || ""}`.trim(), "ok");
     }
