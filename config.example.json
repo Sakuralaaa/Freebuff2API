@@ -4,7 +4,20 @@
   "AUTH_TOKENS": [],
   "ROTATION_INTERVAL": "6h",
   "REQUEST_TIMEOUT": "15m",
+  "STREAM_TIMEOUT": "20m",
   "API_KEYS": [],
   "HTTP_PROXY": "",
-  "ADMIN_PASSWORD": ""
+  "ADMIN_PASSWORD": "",
+  "MODEL_ALIASES": {
+    "gpt-4o": "google/gemini-3.1-pro-preview"
+  },
+  "POLICY": {
+    "MAX_RETRIES": 2,
+    "RETRY_BACKOFF_BASE": "500ms",
+    "RETRY_BACKOFF_MAX": "6s",
+    "PER_TOKEN_CONCURRENCY": 8,
+    "HEALTH_CHECK_ENABLED": true,
+    "HEALTH_CHECK_INTERVAL": "3m",
+    "HEALTH_FAILURE_THRESHOLD": 3
+  }
 }

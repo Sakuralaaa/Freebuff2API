@@ -59,9 +59,22 @@ Configuration is managed via a JSON file and/or environment variables. The JSON 
   "AUTH_TOKENS": ["eyJhb..."],
   "ROTATION_INTERVAL": "6h",
   "REQUEST_TIMEOUT": "15m",
+  "STREAM_TIMEOUT": "20m",
   "API_KEYS": [],
   "HTTP_PROXY": "",
-  "ADMIN_PASSWORD": ""
+  "ADMIN_PASSWORD": "",
+  "MODEL_ALIASES": {
+    "gpt-4o": "google/gemini-3.1-pro-preview"
+  },
+  "POLICY": {
+    "MAX_RETRIES": 2,
+    "RETRY_BACKOFF_BASE": "500ms",
+    "RETRY_BACKOFF_MAX": "6s",
+    "PER_TOKEN_CONCURRENCY": 8,
+    "HEALTH_CHECK_ENABLED": true,
+    "HEALTH_CHECK_INTERVAL": "3m",
+    "HEALTH_FAILURE_THRESHOLD": 3
+  }
 }
 ```
 
@@ -74,9 +87,12 @@ Configuration is managed via a JSON file and/or environment variables. The JSON 
 | `AUTH_TOKENS` | Freebuff auth tokens (JSON array or comma-separated env var) |
 | `ROTATION_INTERVAL` | Run rotation interval (default `6h`) |
 | `REQUEST_TIMEOUT` | Upstream request timeout (default `15m`) |
+| `STREAM_TIMEOUT` | Stream request timeout (default same as `REQUEST_TIMEOUT`) |
 | `API_KEYS` | Client API keys for proxy auth (empty = open access) |
 | `HTTP_PROXY` | HTTP proxy for outbound requests |
 | `ADMIN_PASSWORD` | Web admin password (when set, web login APIs require admin sign-in) |
+| `MODEL_ALIASES` | Alias mapping exposed in `/api/model-aliases` and applied on `/v1/chat/completions` |
+| `POLICY` | Runtime policy defaults for retry/backoff, token concurrency, and health checks |
 
 Environment variables override JSON values when both are set.
 
@@ -90,6 +106,12 @@ The core logic from `freebuff_login_and_print.py` is now integrated into service
 - `GET /api/login/status`: poll authorization status, return user/token data, and auto-register token into runtime pool
 
 After authorization, the token is available immediately without restart; the page still shows `AUTH_TOKENS` export for compatibility.
+
+Additional admin/runtime endpoints:
+
+- `GET/PUT /api/policy`: read/update live retry/timeout/concurrency/health-check policy
+- `GET/PUT /api/model-aliases`: read/update live model alias mapping
+- `GET /metrics`: Prometheus-compatible metrics endpoint
 
 ## Deployment
 

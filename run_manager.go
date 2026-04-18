@@ -18,6 +18,7 @@ type RunManager struct {
 	mu     sync.RWMutex
 	pools  []*tokenPool
 	next   atomic.Uint64
+	policy runtimePolicySnapshot
 
 	stopCh chan struct{}
 	wg     sync.WaitGroup
@@ -40,6 +41,12 @@ type tokenPool struct {
 	successCount  int
 	failureCount  int
 	lastUsedAt    time.Time
+	maxConcurrent int
+	healthy       bool
+	lastHealthAt  time.Time
+	lastHealthyAt time.Time
+	healthStreak  int
+	inflightTotal int
 }
 
 type managedRun struct {
@@ -66,6 +73,12 @@ type tokenSnapshot struct {
 	SuccessCount  int           `json:"success_count"`
 	FailureCount  int           `json:"failure_count"`
 	LastUsedAt    time.Time     `json:"last_used_at,omitempty"`
+	Inflight      int           `json:"inflight"`
+	MaxConcurrent int           `json:"max_concurrent"`
+	Healthy       bool          `json:"healthy"`
+	LastHealthAt  time.Time     `json:"last_health_at,omitempty"`
+	LastHealthyAt time.Time     `json:"last_healthy_at,omitempty"`
+	HealthStreak  int           `json:"health_failure_streak"`
 }
 
 type runSnapshot struct {
@@ -77,6 +90,7 @@ type runSnapshot struct {
 }
 
 func NewRunManager(cfg Config, client *UpstreamClient, logger *log.Logger) *RunManager {
+	initialPolicy := defaultRuntimePolicy(cfg)
 	pools := make([]*tokenPool, 0, len(cfg.AuthTokens))
 	for index, token := range cfg.AuthTokens {
 		pools = append(pools, &tokenPool{
@@ -86,6 +100,8 @@ func NewRunManager(cfg Config, client *UpstreamClient, logger *log.Logger) *RunM
 			client: client,
 			runs:   make(map[string]*managedRun),
 			logger: logger,
+			maxConcurrent: initialPolicy.PerTokenConcurrency,
+			healthy: true,
 		})
 	}
 
@@ -94,6 +110,7 @@ func NewRunManager(cfg Config, client *UpstreamClient, logger *log.Logger) *RunM
 		logger: logger,
 		client: client,
 		pools:  pools,
+		policy: initialPolicy,
 		stopCh: make(chan struct{}),
 	}
 }
@@ -114,10 +131,14 @@ func (m *RunManager) Start(ctx context.Context) {
 		for {
 			select {
 			case <-ticker.C:
+				policy := m.PolicySnapshot()
 				maintainCtx, cancel := context.WithTimeout(context.Background(), m.cfg.RequestTimeout)
 				for _, pool := range m.currentPools() {
 					if err := pool.maintain(maintainCtx); err != nil {
 						m.logger.Printf("%s: maintenance failed: %v", pool.name, err)
+					}
+					if err := pool.healthCheck(maintainCtx, policy); err != nil {
+						m.logger.Printf("%s: health check failed: %v", pool.name, err)
 					}
 				}
 				cancel()
@@ -248,11 +269,14 @@ func (m *RunManager) AddToken(token string) (name string, added bool, err error)
 		client: m.client,
 		runs:   make(map[string]*managedRun),
 		logger: m.logger,
+		maxConcurrent: m.policy.PerTokenConcurrency,
+		healthy: true,
 	}
 	m.pools = append(m.pools, pool)
 	m.mu.Unlock()
 
 	if m.live.Load() {
+		pool.setMaxConcurrent(m.PolicySnapshot().PerTokenConcurrency)
 		go m.prewarmPool(pool)
 	}
 	return pool.name, true, nil
@@ -284,6 +308,11 @@ func (p *tokenPool) acquire(ctx context.Context, agentID string) (*runLease, err
 		return nil, fmt.Errorf("token cooling down until %s", cooldownUntil.Format(time.RFC3339))
 	}
 	run := p.runs[agentID]
+	if p.maxConcurrent > 0 && p.inflightTotal >= p.maxConcurrent {
+		maxConcurrent := p.maxConcurrent
+		p.mu.Unlock()
+		return nil, fmt.Errorf("token inflight limit reached (%d)", maxConcurrent)
+	}
 	needsRotate := run == nil || time.Since(run.startedAt) >= p.cfg.RotationInterval
 	p.mu.Unlock()
 
@@ -300,6 +329,7 @@ func (p *tokenPool) acquire(ctx context.Context, agentID string) (*runLease, err
 		return nil, errors.New("run missing after rotation")
 	}
 	run.inflight++
+	p.inflightTotal++
 	run.requestCount++
 	p.totalRequests++
 	p.lastUsedAt = time.Now()
@@ -403,6 +433,9 @@ func (p *tokenPool) release(run *managedRun) {
 	if run.inflight > 0 {
 		run.inflight--
 	}
+	if p.inflightTotal > 0 {
+		p.inflightTotal--
+	}
 	p.mu.Unlock()
 
 	if err := p.finishIfReady(run); err != nil {
@@ -480,6 +513,12 @@ func (p *tokenPool) markCooldown(duration time.Duration, reason string) {
 	}
 }
 
+func (p *tokenPool) setMaxConcurrent(limit int) {
+	p.mu.Lock()
+	p.maxConcurrent = limit
+	p.mu.Unlock()
+}
+
 func (p *tokenPool) recordResult(success bool) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -503,6 +542,12 @@ func (p *tokenPool) snapshot() tokenSnapshot {
 		SuccessCount:  p.successCount,
 		FailureCount:  p.failureCount,
 		LastUsedAt:    p.lastUsedAt,
+		Inflight:      p.inflightTotal,
+		MaxConcurrent: p.maxConcurrent,
+		Healthy:       p.healthy,
+		LastHealthAt:  p.lastHealthAt,
+		LastHealthyAt: p.lastHealthyAt,
+		HealthStreak:  p.healthStreak,
 	}
 	for agentID, run := range p.runs {
 		snapshot.Runs = append(snapshot.Runs, runSnapshot{
@@ -514,4 +559,54 @@ func (p *tokenPool) snapshot() tokenSnapshot {
 		})
 	}
 	return snapshot
+}
+
+func (m *RunManager) PolicySnapshot() runtimePolicySnapshot {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.policy
+}
+
+func (m *RunManager) UpdatePolicy(policy runtimePolicySnapshot) {
+	m.mu.Lock()
+	m.policy = policy
+	pools := append([]*tokenPool(nil), m.pools...)
+	m.mu.Unlock()
+	for _, pool := range pools {
+		pool.setMaxConcurrent(policy.PerTokenConcurrency)
+	}
+}
+
+func (p *tokenPool) healthCheck(ctx context.Context, policy runtimePolicySnapshot) error {
+	if !policy.HealthCheckEnabled {
+		return nil
+	}
+	p.mu.Lock()
+	if time.Since(p.lastHealthAt) < policy.HealthCheckInterval {
+		p.mu.Unlock()
+		return nil
+	}
+	p.mu.Unlock()
+	runID, err := p.client.StartRun(ctx, p.token, trackedAgents[0])
+	now := time.Now()
+	p.mu.Lock()
+	p.lastHealthAt = now
+	if err != nil {
+		p.healthStreak++
+		p.healthy = p.healthStreak < policy.HealthFailureThreshold
+		p.lastError = err.Error()
+		p.mu.Unlock()
+		return err
+	}
+	p.healthy = true
+	p.healthStreak = 0
+	p.lastHealthyAt = now
+	p.mu.Unlock()
+	if finishErr := p.client.FinishRun(ctx, p.token, runID, 0); finishErr != nil {
+		p.mu.Lock()
+		p.lastError = finishErr.Error()
+		p.mu.Unlock()
+		return finishErr
+	}
+	return nil
 }

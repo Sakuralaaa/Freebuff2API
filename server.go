@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"net/http"
 	"strings"
 	"sync"
@@ -23,11 +24,14 @@ type Server struct {
 	admin    *adminAuth
 	started  time.Time
 	stats    *callStats
+	policy   *runtimePolicyStore
+	aliases  *modelAliasStore
 }
 
 func NewServer(cfg Config, logger *log.Logger, registry *ModelRegistry) *Server {
 	client := NewUpstreamClient(cfg)
 	runManager := NewRunManager(cfg, client, logger)
+	policy := newRuntimePolicyStore(defaultRuntimePolicy(cfg))
 
 	return &Server{
 		cfg:      cfg,
@@ -38,6 +42,8 @@ func NewServer(cfg Config, logger *log.Logger, registry *ModelRegistry) *Server 
 		admin:    newAdminAuth(cfg.AdminPassword),
 		started:  time.Now(),
 		stats:    newCallStats(),
+		policy:   policy,
+		aliases:  newModelAliasStore(cfg.ModelAliases),
 	}
 }
 
@@ -54,8 +60,11 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/export/json", s.handleExportJSON)
 	mux.HandleFunc("/api/login/session", s.handleCreateLoginSession)
 	mux.HandleFunc("/api/login/status", s.handleLoginStatus)
+	mux.HandleFunc("/api/policy", s.handlePolicy)
+	mux.HandleFunc("/api/model-aliases", s.handleModelAliases)
 	mux.HandleFunc("/v1/models", s.handleModels)
 	mux.HandleFunc("/v1/chat/completions", s.handleChatCompletions)
+	mux.HandleFunc("/metrics", s.handleMetrics)
 	return s.withMiddleware(mux)
 }
 
@@ -127,7 +136,13 @@ func (s *Server) handleModels(w http.ResponseWriter, r *http.Request) {
 	}
 
 	created := s.started.Unix()
-	modelsList := s.registry.Models()
+	modelsList := make([]string, 0)
+	if s.registry != nil {
+		modelsList = s.registry.Models()
+	}
+	for alias := range s.aliases.Snapshot() {
+		modelsList = append(modelsList, alias)
+	}
 	models := make([]map[string]any, 0, len(modelsList))
 	for _, model := range modelsList {
 		models = append(models, map[string]any{
@@ -170,11 +185,25 @@ func (s *Server) handleChatCompletions(w http.ResponseWriter, r *http.Request) {
 		writeOpenAIError(w, http.StatusBadRequest, "model is required", "invalid_request_error", "")
 		return
 	}
-	agentID, ok := s.registry.AgentForModel(requestedModel)
+	resolvedModel := s.aliases.Resolve(requestedModel)
+	if s.registry == nil {
+		writeOpenAIError(w, http.StatusBadGateway, "model registry unavailable", "server_error", "")
+		return
+	}
+	agentID, ok := s.registry.AgentForModel(resolvedModel)
 	if !ok {
 		writeOpenAIError(w, http.StatusBadRequest, fmt.Sprintf("unsupported model %q", requestedModel), "invalid_request_error", "model_not_found")
 		return
 	}
+	policy := s.policy.Snapshot()
+	s.runs.UpdatePolicy(policy)
+	isStream, _ := payload["stream"].(bool)
+	timeout := policy.NonStreamTimeout
+	if isStream {
+		timeout = policy.StreamTimeout
+	}
+	requestCtx, cancel := context.WithTimeout(r.Context(), timeout)
+	defer cancel()
 
 	startTime := time.Now()
 	var recordResultOnce sync.Once
@@ -184,27 +213,31 @@ func (s *Server) handleChatCompletions(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	for attempt := 0; attempt < 2; attempt++ {
-		lease, err := s.runs.Acquire(r.Context(), agentID)
+	totalAttempts := policy.MaxRetries + 1
+	for attempt := 0; attempt < totalAttempts; attempt++ {
+		lease, err := s.runs.Acquire(requestCtx, agentID)
 		if err != nil {
 			recordResult(false)
 			writeOpenAIError(w, http.StatusBadGateway, "no healthy upstream auth token available", "server_error", "")
 			return
 		}
 
-		s.logger.Printf("[%s] Routing request (model: %s) via run: %s", lease.pool.name, requestedModel, lease.run.id)
+		s.logger.Printf("[%s] Routing request (model: %s -> %s) via run: %s", lease.pool.name, requestedModel, resolvedModel, lease.run.id)
 
-		upstreamBody, err := s.injectUpstreamMetadata(payload, requestedModel, lease.run.id)
+		upstreamBody, err := s.injectUpstreamMetadata(payload, resolvedModel, lease.run.id)
 		if err != nil {
 			s.runs.Release(lease)
 			writeOpenAIError(w, http.StatusBadRequest, err.Error(), "invalid_request_error", "")
 			return
 		}
 
-		resp, errorBody, err := s.client.ChatCompletions(r.Context(), lease.pool.token, upstreamBody)
+		resp, errorBody, err := s.client.ChatCompletions(requestCtx, lease.pool.token, upstreamBody)
 		if err != nil {
 			s.runs.RecordResult(lease, false)
 			s.runs.Release(lease)
+			if errors.Is(err, context.DeadlineExceeded) {
+				s.stats.RecordTimeout()
+			}
 			recordResult(false)
 			writeOpenAIError(w, http.StatusBadGateway, err.Error(), "server_error", "")
 			return
@@ -229,23 +262,42 @@ func (s *Server) handleChatCompletions(w http.ResponseWriter, r *http.Request) {
 			s.runs.RecordResult(lease, false)
 			s.runs.Invalidate(lease, strings.TrimSpace(string(errorBody)))
 			s.runs.Release(lease)
+			s.stats.RecordRunInvalid()
+			if attempt+1 < totalAttempts {
+				s.stats.RecordRetry(resp.StatusCode)
+				if err := waitRetryBackoff(requestCtx, policy, attempt, resp.Header.Get("Retry-After"), resp.StatusCode); err != nil {
+					recordResult(false)
+					writeOpenAIError(w, http.StatusBadGateway, "request canceled during retry backoff", "server_error", "")
+					return
+				}
+			}
 			continue
 		}
 
 		if resp.StatusCode == http.StatusUnauthorized {
 			s.runs.Cooldown(lease, 30*time.Minute, "upstream auth rejected token")
 		}
+		s.stats.RecordStatusCode(resp.StatusCode)
 
 		s.runs.RecordResult(lease, false)
 		s.runs.Release(lease)
 		s.logger.Printf("[%s] upstream error response: %s", lease.pool.name, string(errorBody))
+		if resp.StatusCode == http.StatusTooManyRequests && attempt+1 < totalAttempts {
+			s.stats.RecordRetry(resp.StatusCode)
+			if err := waitRetryBackoff(requestCtx, policy, attempt, resp.Header.Get("Retry-After"), resp.StatusCode); err != nil {
+				recordResult(false)
+				writeOpenAIError(w, http.StatusBadGateway, "request canceled during retry backoff", "server_error", "")
+				return
+			}
+			continue
+		}
 		recordResult(false)
 		writePassthroughError(w, resp.StatusCode, errorBody)
 		return
 	}
 
 	recordResult(false)
-	writeOpenAIError(w, http.StatusBadGateway, "upstream run expired twice in a row", "server_error", "")
+	writeOpenAIError(w, http.StatusBadGateway, "upstream request exhausted retries", "server_error", "")
 }
 
 func (s *Server) injectUpstreamMetadata(payload map[string]any, requestedModel, runID string) ([]byte, error) {
@@ -312,7 +364,8 @@ func copyHeaders(dst, src http.Header) {
 
 func copyResponseBody(w http.ResponseWriter, body io.Reader) error {
 	flusher, _ := w.(http.Flusher)
-	buffer := make([]byte, 32*1024)
+	buffer := responseBufferPool.Get().([]byte)
+	defer responseBufferPool.Put(buffer)
 	for {
 		n, err := body.Read(buffer)
 		if n > 0 {
@@ -329,6 +382,34 @@ func copyResponseBody(w http.ResponseWriter, body io.Reader) error {
 			}
 			return err
 		}
+	}
+}
+
+var responseBufferPool = sync.Pool{
+	New: func() any {
+		return make([]byte, 32*1024)
+	},
+}
+
+func waitRetryBackoff(ctx context.Context, policy runtimePolicySnapshot, attempt int, retryAfter string, statusCode int) error {
+	delay := retryAfterDuration(retryAfter)
+	if statusCode == http.StatusTooManyRequests && delay <= 0 {
+		exponent := math.Pow(2, float64(attempt))
+		delay = time.Duration(float64(policy.RetryBackoffBase) * exponent)
+	}
+	if delay <= 0 {
+		delay = policy.RetryBackoffBase
+	}
+	if delay > policy.RetryBackoffMax {
+		delay = policy.RetryBackoffMax
+	}
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
 	}
 }
 

@@ -59,9 +59,22 @@ npm i -g freebuff
   "AUTH_TOKENS": ["token"],
   "ROTATION_INTERVAL": "6h",
   "REQUEST_TIMEOUT": "15m",
+  "STREAM_TIMEOUT": "20m",
   "API_KEYS": [],
   "HTTP_PROXY": "",
-  "ADMIN_PASSWORD": ""
+  "ADMIN_PASSWORD": "",
+  "MODEL_ALIASES": {
+    "gpt-4o": "google/gemini-3.1-pro-preview"
+  },
+  "POLICY": {
+    "MAX_RETRIES": 2,
+    "RETRY_BACKOFF_BASE": "500ms",
+    "RETRY_BACKOFF_MAX": "6s",
+    "PER_TOKEN_CONCURRENCY": 8,
+    "HEALTH_CHECK_ENABLED": true,
+    "HEALTH_CHECK_INTERVAL": "3m",
+    "HEALTH_FAILURE_THRESHOLD": 3
+  }
 }
 ```
 
@@ -74,9 +87,12 @@ npm i -g freebuff
 | `AUTH_TOKENS` | Freebuff Auth Token（JSON 数组或逗号分隔的环境变量） |
 | `ROTATION_INTERVAL` | Run 自动轮换间隔（默认 `6h`） |
 | `REQUEST_TIMEOUT` | 上游请求超时时间（默认 `15m`） |
+| `STREAM_TIMEOUT` | 流式请求超时（默认同 `REQUEST_TIMEOUT`） |
 | `API_KEYS` | 客户端鉴权 API Key（留空则无需鉴权） |
 | `HTTP_PROXY` | 上游 HTTP 代理地址 |
 | `ADMIN_PASSWORD` | Web 管理页密码（设置后需先登录管理页） |
+| `MODEL_ALIASES` | 模型别名映射（`/api/model-aliases` 可在线管理） |
+| `POLICY` | 运行时策略默认值（重试/退避/并发/健康检查） |
 
 同时设置时，环境变量优先于 JSON 配置文件。
 
@@ -89,6 +105,12 @@ npm i -g freebuff
 - `GET /api/login/status`：轮询授权状态，返回用户信息并自动注册 token 到运行池
 
 授权完成后，新 token 会直接加入服务运行时，无需重启；页面也会保留 `AUTH_TOKENS` 兼容导出。
+
+新增可观测/管理接口：
+
+- `GET/PUT /api/policy`：读取/更新在线策略（重试、超时、并发、健康检查）
+- `GET/PUT /api/model-aliases`：读取/更新模型别名映射
+- `GET /metrics`：Prometheus 指标端点
 
 ## 部署运行
 

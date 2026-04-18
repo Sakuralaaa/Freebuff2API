@@ -17,10 +17,13 @@ type Config struct {
 	AuthTokens       []string
 	RotationInterval time.Duration
 	RequestTimeout   time.Duration
+	StreamTimeout    time.Duration
 	UserAgent        string
 	APIKeys          []string
 	HTTPProxy        string
 	AdminPassword    string
+	ModelAliases     map[string]string
+	Policy           PolicyConfig
 }
 
 type rawConfig struct {
@@ -29,9 +32,32 @@ type rawConfig struct {
 	AuthTokens       []string `json:"AUTH_TOKENS"`
 	RotationInterval string   `json:"ROTATION_INTERVAL"`
 	RequestTimeout   string   `json:"REQUEST_TIMEOUT"`
+	StreamTimeout    string   `json:"STREAM_TIMEOUT"`
 	APIKeys          []string `json:"API_KEYS"`
 	HTTPProxy        string   `json:"HTTP_PROXY"`
 	AdminPassword    string   `json:"ADMIN_PASSWORD"`
+	ModelAliases     map[string]string `json:"MODEL_ALIASES"`
+	Policy           rawPolicyConfig   `json:"POLICY"`
+}
+
+type PolicyConfig struct {
+	MaxRetries              int
+	RetryBackoffBase        time.Duration
+	RetryBackoffMax         time.Duration
+	PerTokenConcurrency     int
+	HealthCheckEnabled      bool
+	HealthCheckInterval     time.Duration
+	HealthFailureThreshold  int
+}
+
+type rawPolicyConfig struct {
+	MaxRetries             *int   `json:"MAX_RETRIES"`
+	RetryBackoffBase       string `json:"RETRY_BACKOFF_BASE"`
+	RetryBackoffMax        string `json:"RETRY_BACKOFF_MAX"`
+	PerTokenConcurrency    *int   `json:"PER_TOKEN_CONCURRENCY"`
+	HealthCheckEnabled     *bool  `json:"HEALTH_CHECK_ENABLED"`
+	HealthCheckInterval    string `json:"HEALTH_CHECK_INTERVAL"`
+	HealthFailureThreshold *int   `json:"HEALTH_FAILURE_THRESHOLD"`
 }
 
 func loadConfig(configPath string) (Config, error) {
@@ -44,6 +70,7 @@ func loadConfig(configPath string) (Config, error) {
 	overrideString(&cfg.UpstreamBaseURL, "UPSTREAM_BASE_URL")
 	overrideString(&cfg.RotationInterval, "ROTATION_INTERVAL")
 	overrideString(&cfg.RequestTimeout, "REQUEST_TIMEOUT")
+	overrideString(&cfg.StreamTimeout, "STREAM_TIMEOUT")
 	overrideCSV(&cfg.AuthTokens, "AUTH_TOKENS")
 	overrideCSV(&cfg.APIKeys, "API_KEYS")
 	overrideString(&cfg.HTTPProxy, "HTTP_PROXY")
@@ -58,6 +85,18 @@ func loadConfig(configPath string) (Config, error) {
 	if err != nil {
 		return Config{}, fmt.Errorf("parse request timeout: %w", err)
 	}
+	streamTimeoutRaw := strings.TrimSpace(cfg.StreamTimeout)
+	if streamTimeoutRaw == "" {
+		streamTimeoutRaw = cfg.RequestTimeout
+	}
+	streamTimeout, err := time.ParseDuration(streamTimeoutRaw)
+	if err != nil {
+		return Config{}, fmt.Errorf("parse stream timeout: %w", err)
+	}
+	policyCfg, err := parsePolicyConfig(cfg.Policy)
+	if err != nil {
+		return Config{}, err
+	}
 
 	finalCfg := Config{
 		ListenAddr:       strings.TrimSpace(cfg.ListenAddr),
@@ -65,10 +104,13 @@ func loadConfig(configPath string) (Config, error) {
 		AuthTokens:       dedupeStrings(cfg.AuthTokens),
 		RotationInterval: rotationInterval,
 		RequestTimeout:   requestTimeout,
+		StreamTimeout:    streamTimeout,
 		UserAgent:        generateUserAgent(),
 		APIKeys:          dedupeStrings(cfg.APIKeys),
 		HTTPProxy:        strings.TrimSpace(cfg.HTTPProxy),
 		AdminPassword:    strings.TrimSpace(cfg.AdminPassword),
+		ModelAliases:     normalizeModelAliases(cfg.ModelAliases),
+		Policy:           policyCfg,
 	}
 
 	switch {
@@ -80,6 +122,8 @@ func loadConfig(configPath string) (Config, error) {
 		return Config{}, errors.New("ROTATION_INTERVAL must be greater than zero")
 	case finalCfg.RequestTimeout <= 0:
 		return Config{}, errors.New("REQUEST_TIMEOUT must be greater than zero")
+	case finalCfg.StreamTimeout <= 0:
+		return Config{}, errors.New("STREAM_TIMEOUT must be greater than zero")
 	}
 
 	return finalCfg, nil
@@ -91,6 +135,16 @@ func loadRawConfig(configPath string) (rawConfig, error) {
 		UpstreamBaseURL:  "https://codebuff.com",
 		RotationInterval: "6h",
 		RequestTimeout:   "15m",
+		StreamTimeout:    "15m",
+		Policy: rawPolicyConfig{
+			MaxRetries:             intPtr(2),
+			RetryBackoffBase:       "500ms",
+			RetryBackoffMax:        "6s",
+			PerTokenConcurrency:    intPtr(8),
+			HealthCheckEnabled:     boolPtr(true),
+			HealthCheckInterval:    "3m",
+			HealthFailureThreshold: intPtr(3),
+		},
 	}
 
 	if configPath != "" {
@@ -167,6 +221,94 @@ func containsString(values []string, needle string) bool {
 
 func generateUserAgent() string {
 	return "ai-sdk/openai-compatible/1.0.25/codebuff"
+}
+
+func parsePolicyConfig(raw rawPolicyConfig) (PolicyConfig, error) {
+	result := PolicyConfig{
+		MaxRetries:             2,
+		RetryBackoffBase:       500 * time.Millisecond,
+		RetryBackoffMax:        6 * time.Second,
+		PerTokenConcurrency:    8,
+		HealthCheckEnabled:     true,
+		HealthCheckInterval:    3 * time.Minute,
+		HealthFailureThreshold: 3,
+	}
+	if raw.MaxRetries != nil {
+		result.MaxRetries = *raw.MaxRetries
+	}
+	if raw.PerTokenConcurrency != nil {
+		result.PerTokenConcurrency = *raw.PerTokenConcurrency
+	}
+	if raw.HealthCheckEnabled != nil {
+		result.HealthCheckEnabled = *raw.HealthCheckEnabled
+	}
+	if raw.HealthFailureThreshold != nil {
+		result.HealthFailureThreshold = *raw.HealthFailureThreshold
+	}
+	if strings.TrimSpace(raw.RetryBackoffBase) != "" {
+		d, err := time.ParseDuration(strings.TrimSpace(raw.RetryBackoffBase))
+		if err != nil {
+			return PolicyConfig{}, fmt.Errorf("parse policy retry backoff base: %w", err)
+		}
+		result.RetryBackoffBase = d
+	}
+	if strings.TrimSpace(raw.RetryBackoffMax) != "" {
+		d, err := time.ParseDuration(strings.TrimSpace(raw.RetryBackoffMax))
+		if err != nil {
+			return PolicyConfig{}, fmt.Errorf("parse policy retry backoff max: %w", err)
+		}
+		result.RetryBackoffMax = d
+	}
+	if strings.TrimSpace(raw.HealthCheckInterval) != "" {
+		d, err := time.ParseDuration(strings.TrimSpace(raw.HealthCheckInterval))
+		if err != nil {
+			return PolicyConfig{}, fmt.Errorf("parse policy health check interval: %w", err)
+		}
+		result.HealthCheckInterval = d
+	}
+	if result.MaxRetries < 0 {
+		return PolicyConfig{}, errors.New("POLICY.MAX_RETRIES cannot be negative")
+	}
+	if result.RetryBackoffBase <= 0 {
+		return PolicyConfig{}, errors.New("POLICY.RETRY_BACKOFF_BASE must be greater than zero")
+	}
+	if result.RetryBackoffMax < result.RetryBackoffBase {
+		return PolicyConfig{}, errors.New("POLICY.RETRY_BACKOFF_MAX must be greater than or equal to RETRY_BACKOFF_BASE")
+	}
+	if result.PerTokenConcurrency <= 0 {
+		return PolicyConfig{}, errors.New("POLICY.PER_TOKEN_CONCURRENCY must be greater than zero")
+	}
+	if result.HealthCheckInterval <= 0 {
+		return PolicyConfig{}, errors.New("POLICY.HEALTH_CHECK_INTERVAL must be greater than zero")
+	}
+	if result.HealthFailureThreshold <= 0 {
+		return PolicyConfig{}, errors.New("POLICY.HEALTH_FAILURE_THRESHOLD must be greater than zero")
+	}
+	return result, nil
+}
+
+func normalizeModelAliases(input map[string]string) map[string]string {
+	if len(input) == 0 {
+		return map[string]string{}
+	}
+	out := make(map[string]string, len(input))
+	for alias, model := range input {
+		alias = strings.TrimSpace(alias)
+		model = strings.TrimSpace(model)
+		if alias == "" || model == "" {
+			continue
+		}
+		out[alias] = model
+	}
+	return out
+}
+
+func intPtr(value int) *int {
+	return &value
+}
+
+func boolPtr(value bool) *bool {
+	return &value
 }
 
 // generateClientSessionId generates a per-request session ID matching the

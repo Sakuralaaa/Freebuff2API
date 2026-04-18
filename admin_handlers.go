@@ -17,6 +17,8 @@ type internalTokenStatsAggregate struct {
 	totalFailed   int
 	activeRuns    int
 	drainingRuns  int
+	inflight      int
+	healthyTokens int
 }
 
 func (s *Server) handleAdminStatus(w http.ResponseWriter, r *http.Request) {
@@ -100,6 +102,8 @@ func (s *Server) handleStats(w http.ResponseWriter, r *http.Request) {
 		"started_at": s.started.UTC(),
 		"uptime_sec": int(time.Since(s.started).Seconds()),
 		"calls":      s.stats.Snapshot(),
+		"policy":     policyPayloadFromSnapshot(s.policy.Snapshot()),
+		"model_aliases": s.aliases.Snapshot(),
 		"tokens": map[string]any{
 			"total":          len(tokenState),
 			"active_runs":    aggregatedTokenStats.activeRuns,
@@ -107,6 +111,8 @@ func (s *Server) handleStats(w http.ResponseWriter, r *http.Request) {
 			"total_requests": aggregatedTokenStats.totalRequests,
 			"success_count":  aggregatedTokenStats.totalSuccess,
 			"failure_count":  aggregatedTokenStats.totalFailed,
+			"inflight":       aggregatedTokenStats.inflight,
+			"healthy_count":  aggregatedTokenStats.healthyTokens,
 			"items":          tokenState,
 		},
 	})
@@ -120,6 +126,10 @@ func aggregateTokenStats(tokens []tokenSnapshot) internalTokenStatsAggregate {
 		result.totalFailed += token.FailureCount
 		result.activeRuns += len(token.Runs)
 		result.drainingRuns += token.DrainingRuns
+		result.inflight += token.Inflight
+		if token.Healthy {
+			result.healthyTokens++
+		}
 	}
 	return result
 }
@@ -141,6 +151,8 @@ func (s *Server) handleExportJSON(w http.ResponseWriter, r *http.Request) {
 		"total_requests": aggregatedTokenStats.totalRequests,
 		"success_count":  aggregatedTokenStats.totalSuccess,
 		"failure_count":  aggregatedTokenStats.totalFailed,
+		"inflight":       aggregatedTokenStats.inflight,
+		"healthy_count":  aggregatedTokenStats.healthyTokens,
 		"items":          tokenState,
 	}
 
@@ -148,6 +160,8 @@ func (s *Server) handleExportJSON(w http.ResponseWriter, r *http.Request) {
 		"name":        "Freebuff",
 		"exported_at": time.Now().UTC(),
 		"auth_tokens": authTokens,
+		"policy":      policyPayloadFromSnapshot(s.policy.Snapshot()),
+		"model_aliases": s.aliases.Snapshot(),
 		"stats": map[string]any{
 			"calls":  statsSnapshot,
 			"tokens": tokenSummary,

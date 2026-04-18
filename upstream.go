@@ -21,6 +21,11 @@ type UpstreamClient struct {
 
 func NewUpstreamClient(cfg Config) *UpstreamClient {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.MaxIdleConns = 200
+	transport.MaxIdleConnsPerHost = 100
+	transport.MaxConnsPerHost = 0
+	transport.IdleConnTimeout = 90 * time.Second
+	transport.ExpectContinueTimeout = time.Second
 	if cfg.HTTPProxy != "" {
 		if proxyURL, err := url.Parse(cfg.HTTPProxy); err == nil {
 			transport.Proxy = http.ProxyURL(proxyURL)
