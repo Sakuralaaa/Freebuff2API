@@ -111,11 +111,12 @@ func (s *Server) handleLoginStatus(w http.ResponseWriter, r *http.Request) {
 	if loggedIn {
 		authToken := strings.TrimSpace(stringValue(user, "authToken"))
 		authTokenAlt := strings.TrimSpace(stringValue(user, "auth_token"))
-		switch {
-		case authToken != "" && authTokenAlt == "":
+		if authToken == "" {
+			authToken = authTokenAlt
+		}
+		if authToken != "" {
+			user["authToken"] = authToken
 			user["auth_token"] = authToken
-		case authToken == "" && authTokenAlt != "":
-			user["authToken"] = authTokenAlt
 		}
 		payload["user"] = user
 	}
