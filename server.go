@@ -41,6 +41,7 @@ func NewServer(cfg Config, logger *log.Logger, registry *ModelRegistry) *Server 
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", s.handleFrontendIndex)
+	mux.HandleFunc("/ui", s.handleFrontendUI)
 	mux.Handle("/ui/", http.StripPrefix("/ui/", http.FileServer(http.FS(frontendFS))))
 	mux.HandleFunc("/healthz", s.handleHealthz)
 	mux.HandleFunc("/api/admin/status", s.handleAdminStatus)
