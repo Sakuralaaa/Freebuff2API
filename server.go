@@ -28,6 +28,8 @@ type Server struct {
 	aliases  *modelAliasStore
 }
 
+const schemaNormalizeMaxDepth = 12
+
 func NewServer(cfg Config, logger *log.Logger, registry *ModelRegistry) *Server {
 	client := NewUpstreamClient(cfg)
 	runManager := NewRunManager(cfg, client, logger)
@@ -361,7 +363,7 @@ func normalizeToolSchemas(tools []any) {
 		if !ok {
 			continue
 		}
-		fn["parameters"] = normalizeSchemaMap(params, extractDefinitions(params), 12)
+		fn["parameters"] = normalizeSchemaMap(params, extractDefinitions(params), schemaNormalizeMaxDepth)
 	}
 }
 
@@ -533,7 +535,11 @@ func normalizeEnumField(schema map[string]any) {
 		if entry == nil {
 			continue
 		}
-		key := fmt.Sprintf("%T:%v", entry, entry)
+		keyBytes, err := json.Marshal(entry)
+		key := string(keyBytes)
+		if err != nil {
+			key = fmt.Sprintf("%T:%v", entry, entry)
+		}
 		if _, exists := seen[key]; exists {
 			continue
 		}
