@@ -33,23 +33,26 @@ type tokenPool struct {
 	client *UpstreamClient
 	logger *log.Logger
 
-	mu            sync.Mutex
-	runs          map[string]*managedRun // agentID → current run
-	draining      []*managedRun
-	enabled       bool
-	lastError     string
-	cooldownUntil time.Time
-	totalRequests int
-	successCount  int
-	failureCount  int
-	failStreak    int
-	lastUsedAt    time.Time
-	maxConcurrent int
-	healthy       bool
-	lastHealthAt  time.Time
-	lastHealthyAt time.Time
-	healthStreak  int
-	inflightTotal int
+	mu                      sync.Mutex
+	runs                    map[string]*managedRun // agentID → current run
+	draining                []*managedRun
+	session                 *cachedSession
+	sessionRefreshCh        chan struct{}
+	sessionRebuildScheduled bool
+	enabled                 bool
+	lastError               string
+	cooldownUntil           time.Time
+	totalRequests           int
+	successCount            int
+	failureCount            int
+	failStreak              int
+	lastUsedAt              time.Time
+	maxConcurrent           int
+	healthy                 bool
+	lastHealthAt            time.Time
+	lastHealthyAt           time.Time
+	healthStreak            int
+	inflightTotal           int
 }
 
 type managedRun struct {
@@ -67,22 +70,25 @@ type runLease struct {
 }
 
 type tokenSnapshot struct {
-	Name          string        `json:"name"`
-	Enabled       bool          `json:"enabled"`
-	Runs          []runSnapshot `json:"runs"`
-	DrainingRuns  int           `json:"draining_runs"`
-	CooldownUntil time.Time     `json:"cooldown_until,omitempty"`
-	LastError     string        `json:"last_error,omitempty"`
-	TotalRequests int           `json:"total_requests"`
-	SuccessCount  int           `json:"success_count"`
-	FailureCount  int           `json:"failure_count"`
-	LastUsedAt    time.Time     `json:"last_used_at,omitempty"`
-	Inflight      int           `json:"inflight"`
-	MaxConcurrent int           `json:"max_concurrent"`
-	Healthy       bool          `json:"healthy"`
-	LastHealthAt  time.Time     `json:"last_health_at,omitempty"`
-	LastHealthyAt time.Time     `json:"last_healthy_at,omitempty"`
-	HealthStreak  int           `json:"health_failure_streak"`
+	Name              string        `json:"name"`
+	Enabled           bool          `json:"enabled"`
+	Runs              []runSnapshot `json:"runs"`
+	DrainingRuns      int           `json:"draining_runs"`
+	SessionStatus     string        `json:"session_status,omitempty"`
+	SessionInstanceID string        `json:"session_instance_id,omitempty"`
+	SessionExpiresAt  time.Time     `json:"session_expires_at,omitempty"`
+	CooldownUntil     time.Time     `json:"cooldown_until,omitempty"`
+	LastError         string        `json:"last_error,omitempty"`
+	TotalRequests     int           `json:"total_requests"`
+	SuccessCount      int           `json:"success_count"`
+	FailureCount      int           `json:"failure_count"`
+	LastUsedAt        time.Time     `json:"last_used_at,omitempty"`
+	Inflight          int           `json:"inflight"`
+	MaxConcurrent     int           `json:"max_concurrent"`
+	Healthy           bool          `json:"healthy"`
+	LastHealthAt      time.Time     `json:"last_health_at,omitempty"`
+	LastHealthyAt     time.Time     `json:"last_healthy_at,omitempty"`
+	HealthStreak      int           `json:"health_failure_streak"`
 }
 
 type runSnapshot struct {
@@ -159,6 +165,7 @@ func (m *RunManager) prewarm() {
 	defer cancel()
 
 	for _, pool := range m.currentPools() {
+		go pool.prewarmSession(context.Background())
 		for _, agentID := range trackedAgents {
 			if err := pool.rotateAgent(ctx, agentID); err != nil {
 				m.logger.Printf("%s: prewarm %s failed: %v", pool.name, agentID, err)
@@ -312,6 +319,7 @@ func (m *RunManager) AddToken(token string) (name string, added bool, err error)
 func (m *RunManager) prewarmPool(pool *tokenPool) {
 	ctx, cancel := context.WithTimeout(context.Background(), m.cfg.RequestTimeout)
 	defer cancel()
+	go pool.prewarmSession(context.Background())
 	for _, agentID := range trackedAgents {
 		if err := pool.rotateAgent(ctx, agentID); err != nil {
 			m.logger.Printf("%s: prewarm %s failed: %v", pool.name, agentID, err)
@@ -349,6 +357,11 @@ func (p *tokenPool) acquire(ctx context.Context, agentID string) (*runLease, err
 
 	if needsRotate {
 		if err := p.rotateAgent(ctx, agentID); err != nil {
+			return nil, err
+		}
+	}
+	if p.client != nil {
+		if _, err := p.ensureSession(ctx); err != nil {
 			return nil, err
 		}
 	}
@@ -411,6 +424,9 @@ func (p *tokenPool) shutdown(ctx context.Context) error {
 		if err := p.client.FinishRun(ctx, p.token, run.id, run.requestCount); err != nil {
 			errs = append(errs, err.Error())
 		}
+	}
+	if err := p.endSession(ctx); err != nil {
+		errs = append(errs, err.Error())
 	}
 	if len(errs) > 0 {
 		return errors.New(strings.Join(errs, "; "))
@@ -607,6 +623,11 @@ func (p *tokenPool) snapshot() tokenSnapshot {
 		LastHealthAt:  p.lastHealthAt,
 		LastHealthyAt: p.lastHealthyAt,
 		HealthStreak:  p.healthStreak,
+	}
+	if p.session != nil {
+		snapshot.SessionStatus = string(p.session.status)
+		snapshot.SessionInstanceID = p.session.instanceID
+		snapshot.SessionExpiresAt = p.session.expiresAt
 	}
 	for agentID, run := range p.runs {
 		snapshot.Runs = append(snapshot.Runs, runSnapshot{

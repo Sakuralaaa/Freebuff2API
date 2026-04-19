@@ -226,7 +226,7 @@ func (s *Server) handleChatCompletions(w http.ResponseWriter, r *http.Request) {
 
 		s.logger.Printf("[%s] Routing request (model: %s -> %s) via run: %s", lease.pool.name, requestedModel, resolvedModel, lease.run.id)
 
-		upstreamBody, err := s.injectUpstreamMetadata(payload, resolvedModel, lease.run.id)
+		upstreamBody, err := s.injectUpstreamMetadata(payload, resolvedModel, lease.run.id, lease.pool.currentSessionInstanceID())
 		if err != nil {
 			s.runs.Release(lease)
 			writeOpenAIError(w, http.StatusBadRequest, err.Error(), "invalid_request_error", "")
@@ -259,6 +259,23 @@ func (s *Server) handleChatCompletions(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		if isSessionInvalid(resp.StatusCode, errorBody) {
+			s.logger.Printf("%s: free session invalid, refreshing and retrying", lease.pool.name)
+			s.runs.RecordResult(lease, false)
+			lease.pool.invalidateSession(strings.TrimSpace(string(errorBody)))
+			s.runs.Release(lease)
+			s.stats.RecordRunInvalid()
+			if attempt+1 < totalAttempts {
+				s.stats.RecordRetry(resp.StatusCode)
+				if err := waitRetryBackoff(requestCtx, policy, attempt, resp.Header.Get("Retry-After"), resp.StatusCode); err != nil {
+					recordResult(false)
+					writeOpenAIError(w, http.StatusBadGateway, "request canceled during retry backoff", "server_error", "")
+					return
+				}
+			}
+			continue
+		}
+
 		if isRunInvalid(resp.StatusCode, errorBody) {
 			s.logger.Printf("%s: run %s invalid, rotating and retrying", lease.pool.name, lease.run.id)
 			s.runs.RecordResult(lease, false)
@@ -278,6 +295,7 @@ func (s *Server) handleChatCompletions(w http.ResponseWriter, r *http.Request) {
 
 		if resp.StatusCode == http.StatusUnauthorized {
 			s.runs.Cooldown(lease, 30*time.Minute, "upstream auth rejected token")
+			lease.pool.invalidateSession("upstream auth rejected token")
 		}
 		s.stats.RecordStatusCode(resp.StatusCode)
 
@@ -302,7 +320,7 @@ func (s *Server) handleChatCompletions(w http.ResponseWriter, r *http.Request) {
 	writeOpenAIError(w, http.StatusBadGateway, "upstream request exhausted retries", "server_error", "")
 }
 
-func (s *Server) injectUpstreamMetadata(payload map[string]any, requestedModel, runID string) ([]byte, error) {
+func (s *Server) injectUpstreamMetadata(payload map[string]any, requestedModel, runID, sessionInstanceID string) ([]byte, error) {
 	cloned := cloneMap(payload)
 	cloned["model"] = requestedModel
 
@@ -313,6 +331,9 @@ func (s *Server) injectUpstreamMetadata(payload map[string]any, requestedModel, 
 	metadata["run_id"] = runID
 	metadata["cost_mode"] = "free"
 	metadata["client_id"] = generateClientSessionId()
+	if strings.TrimSpace(sessionInstanceID) != "" {
+		metadata["freebuff_instance_id"] = sessionInstanceID
+	}
 	cloned["codebuff_metadata"] = metadata
 
 	body, err := json.Marshal(cloned)
@@ -421,6 +442,24 @@ func isRunInvalid(statusCode int, body []byte) bool {
 	}
 	message := strings.ToLower(string(body))
 	return strings.Contains(message, "runid not found") || strings.Contains(message, "runid not running")
+}
+
+func isSessionInvalid(statusCode int, errorBody []byte) bool {
+	if statusCode < 400 {
+		return false
+	}
+	var payload struct {
+		Error string `json:"error"`
+	}
+	if err := json.Unmarshal(errorBody, &payload); err != nil {
+		return false
+	}
+	switch strings.TrimSpace(payload.Error) {
+	case "freebuff_update_required", "waiting_room_required", "waiting_room_queued", "session_superseded", "session_expired":
+		return true
+	default:
+		return false
+	}
 }
 
 func writePassthroughError(w http.ResponseWriter, statusCode int, body []byte) {
